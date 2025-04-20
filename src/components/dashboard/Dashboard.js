@@ -1,19 +1,42 @@
-// src/components/dashboard/Dashboard.js - 根据新需求更新
+// src/components/dashboard/Dashboard.js - 使用MongoDB数据
 import React, { useState } from "react";
-import { Card, Row, Col, Statistic, Tabs } from "antd";
+import { Card, Row, Col, Statistic, Tabs, Spin, Alert } from "antd";
 import ReactECharts from "echarts-for-react";
+import { useExpressData } from "../../hooks/useExpressData";
+import ServerStatus from "../ServerStatus";
 
-function Dashboard({ data }) {
+function Dashboard() {
   const [activeTab, setActiveTab] = useState("daily");
+  const { data, loading, error, serverStatus, checkStatus } = useExpressData();
+
+  // 加载状态
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "50px" }}>
+        <Spin size="large" />
+        <p style={{ marginTop: "20px" }}>数据加载中...</p>
+      </div>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <Alert message="数据加载失败" description={error} type="error" showIcon />
+    );
+  }
 
   // 确保数据可用
   if (!data || data.length === 0) {
     return (
-      <Card title="仪表盘" className="card">
-        <div style={{ textAlign: "center", padding: "20px 0" }}>
-          <p>暂无数据。请添加快递数据。</p>
-        </div>
-      </Card>
+      <div style={{ padding: "20px" }}>
+        <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
+        <Card title="仪表盘" className="card">
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <p>暂无数据。请在数据管理页面添加快递数据。</p>
+          </div>
+        </Card>
+      </div>
     );
   }
 
@@ -542,93 +565,97 @@ function Dashboard({ data }) {
   ];
 
   return (
-    <Card title="快递数据分析仪表盘" className="card">
-      {/* 统计卡片 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="总单量"
-              value={analysisData.totalOrderCount}
-              valueStyle={{ color: "#1890ff" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="易仓系统总量"
-              value={analysisData.ecSystemTotal}
-              valueStyle={{ color: "#52c41a" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="新系统总量"
-              value={analysisData.newSystemTotal}
-              valueStyle={{ color: "#fa8c16" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="平均人效"
-              value={analysisData.avgOrdersPerPerson}
-              suffix="单/人"
-              valueStyle={{ color: "#2ecc71" }}
-            />
-          </Card>
-        </Col>
-      </Row>
+    <div style={{ padding: "20px" }}>
+      <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
 
-      {/* 第二行统计 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="FedEx 总量"
-              value={analysisData.fedexCount}
-              valueStyle={{ color: "#722ed1" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="UPS 总量"
-              value={analysisData.upsCount}
-              valueStyle={{ color: "#13c2c2" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="A008占比"
-              value={analysisData.a008Percentage}
-              suffix="%"
-              precision={1}
-              valueStyle={{ color: "#eb2f96" }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6}>
-          <Card>
-            <Statistic
-              title="平均完成时间"
-              value={analysisData.averageCompletionTime}
-              valueStyle={{ color: "#3f8600" }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Card title="仪表盘" className="card">
+        {/* 顶部统计 */}
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="总单量"
+                value={analysisData.totalOrderCount}
+                valueStyle={{ color: "#1890ff" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="易仓系统总量"
+                value={analysisData.ecSystemTotal}
+                valueStyle={{ color: "#52c41a" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="新系统总量"
+                value={analysisData.newSystemTotal}
+                valueStyle={{ color: "#fa8c16" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="平均人效"
+                value={analysisData.avgOrdersPerPerson}
+                suffix="单/人"
+                valueStyle={{ color: "#2ecc71" }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-      {/* 图表分析 */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
-    </Card>
+        {/* 第二行统计 */}
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="FedEx 总量"
+                value={analysisData.fedexCount}
+                valueStyle={{ color: "#722ed1" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="UPS 总量"
+                value={analysisData.upsCount}
+                valueStyle={{ color: "#13c2c2" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="A008占比"
+                value={analysisData.a008Percentage}
+                suffix="%"
+                precision={1}
+                valueStyle={{ color: "#eb2f96" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="平均完成时间"
+                value={analysisData.averageCompletionTime}
+                valueStyle={{ color: "#3f8600" }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 图表分析 */}
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+      </Card>
+    </div>
   );
 }
 
