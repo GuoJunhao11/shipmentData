@@ -1,0 +1,25 @@
+.app-layout {
+  min-height: 100vh;
+}
+
+.app-content {
+  padding: 24px 0;
+}
+
+.app-header {
+  background-color: #2c3e50;
+  color: white;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.app-logo {
+  margin-right: 10px;
+  font-size: 20px;
+} 
