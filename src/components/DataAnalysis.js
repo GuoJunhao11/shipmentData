@@ -1,3 +1,4 @@
+// src/components/DataAnalysis.js 修复版本
 import React, { useState } from "react";
 import { Card, Row, Col, Statistic, Tabs, Button, Table } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
@@ -17,7 +18,7 @@ function DataAnalysis({ data }) {
     },
     xAxis: {
       type: "category",
-      data: data.dailyTrend.map((item) => item.date),
+      data: data.dailyTrend.map((item) => item.date.split("/2025")[0]), // 修复：移除年份显示，只显示月/日
       name: "日期",
       nameLocation: "middle",
       nameGap: 30,
@@ -31,12 +32,14 @@ function DataAnalysis({ data }) {
     tooltip: {
       trigger: "axis",
       formatter: function (params) {
-        const data = params[0].data;
+        const pointData = params[0].data;
         return `${params[0].name}<br/>
                 总量: ${params[0].value}<br/>
                 FedEx: ${params.length > 1 ? params[1].value : "-"}<br/>
                 UPS: ${params.length > 2 ? params[2].value : "-"}<br/>
-                完成时间: ${data.completionTime || "-"}`;
+                完成时间: ${
+                  data.dailyTrend[params[0].dataIndex]?.completionTime || "-"
+                }`;
       },
     },
     legend: {
@@ -122,7 +125,7 @@ function DataAnalysis({ data }) {
     },
     xAxis: {
       type: "category",
-      data: data.dailyTrend.map((item) => item.date),
+      data: data.dailyTrend.map((item) => item.date.split("/2025")[0]), // 修复：移除年份显示，只显示月/日
     },
     yAxis: {
       type: "value",
@@ -163,7 +166,7 @@ function DataAnalysis({ data }) {
     },
     xAxis: {
       type: "category",
-      data: data.dailyTrend.map((item) => item.date),
+      data: data.dailyTrend.map((item) => item.date.split("/2025")[0]), // 修复：移除年份显示，只显示月/日
     },
     yAxis: {
       type: "value",
@@ -180,30 +183,14 @@ function DataAnalysis({ data }) {
         name: "FedEx 库板数",
         type: "bar",
         stack: "库板",
-        data: data.dailyTrend.map((item, index) => {
-          const date = item.date;
-          const matchingRow = data.rawData.find(
-            (row) => row[data.columnMapping.dateColumn] === date
-          );
-          return matchingRow && data.columnMapping.fedexStorageColumn
-            ? matchingRow[data.columnMapping.fedexStorageColumn]
-            : 0;
-        }),
+        data: data.dailyTrend.map((item) => item.fedexStorageCount),
         color: "#722ed1",
       },
       {
         name: "UPS 库板数",
         type: "bar",
         stack: "库板",
-        data: data.dailyTrend.map((item, index) => {
-          const date = item.date;
-          const matchingRow = data.rawData.find(
-            (row) => row[data.columnMapping.dateColumn] === date
-          );
-          return matchingRow && data.columnMapping.upsStorageColumn
-            ? matchingRow[data.columnMapping.upsStorageColumn]
-            : 0;
-        }),
+        data: data.dailyTrend.map((item) => item.upsStorageCount),
         color: "#13c2c2",
       },
     ],

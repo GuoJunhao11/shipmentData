@@ -1,283 +1,206 @@
-import React from "react";
-import { Layout } from "antd";
-import Header from "./components/Header";
-import FileUpload from "./components/FileUpload";
-import DataAnalysis from "./components/DataAnalysis";
-import { useState } from "react";
+// src/App.js - 确保样例数据正确导入和加载
+import React, { useState, useEffect, useContext } from "react";
+import { Layout, Menu, Button, message } from "antd";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from "react-router-dom";
+import {
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  LockOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
+import { AuthProvider, AuthContext } from "./contexts/AuthContext";
+import Login from "./components/auth/Login";
+import AdminRoute from "./components/auth/AdminRoute";
+import Dashboard from "./components/dashboard/Dashboard";
+import DataEntry from "./components/data/DataEntry";
+import DataTable from "./components/data/DataTable";
+import UnauthorizedPage from "./components/UnauthorizedPage";
 import "./App.css";
+import { sampleData } from "./sampleData";
 
-const { Content } = Layout;
+const { Header, Sider, Content } = Layout;
 
-function App() {
-  const [analysisData, setAnalysisData] = useState(null);
+// 主布局组件
+function MainLayout() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [expressData, setExpressData] = useState([]);
+  const { isAdmin, adminLogout } = useContext(AuthContext);
 
-  // Handle file upload and data analysis
-  const handleDataAnalysis = (data) => {
-    try {
-      // Sample data structure from the image:
-      // - 日期 (Date) - like 4/8, 4/9, etc.
-      // - 寄件总量 (Total shipments)
-      // - 新系统总量 (New system total)
-      // - FedEx 总数量 (FedEx total)
-      // - UPS 总数量 (UPS total)
-      // - FedEx 中 A008 订单数 (FedEx A008 orders)
-      // - UPS 中 A008 订单数 (UPS A008 orders)
-      // - 电池板数 (Battery panel count)
-      // - FedEx 含库板数 (FedEx with storage panel)
-      // - UPS含库板数 (UPS with storage panel)
-      // - 完成时间 (Completion time)
-      // - 人数 (People count)
-      // - 备注 (Remarks)
-
-      // Process data and generate analysis
-      // Map column names (check if they exist, otherwise use defaults)
-      const findColumnName = (possibleNames) => {
-        for (const name of possibleNames) {
-          const key = Object.keys(data[0] || {}).find((k) =>
-            k.toLowerCase().includes(name.toLowerCase())
-          );
-          if (key) return key;
-        }
-        return null;
-      };
-
-      const dateColumn = findColumnName(["日期", "date", "日", "时间"]);
-      const totalColumn = findColumnName([
-        "寄件总量",
-        "总量",
-        "total",
-        "shipments",
-      ]);
-      const newSystemColumn = findColumnName([
-        "新系统总量",
-        "新系统",
-        "new system",
-      ]);
-      const fedexColumn = findColumnName(["fedex总数量", "fedex总数", "fedex"]);
-      const upsColumn = findColumnName(["ups总数量", "ups总数", "ups"]);
-      const fedexA008Column = findColumnName(["fedex中a008", "fedex a008"]);
-      const upsA008Column = findColumnName(["ups中a008", "ups a008"]);
-      const batteryColumn = findColumnName(["电池板数", "电池"]);
-      const fedexStorageColumn = findColumnName(["fedex含库板数", "fedex库板"]);
-      const upsStorageColumn = findColumnName(["ups含库板数", "ups库板"]);
-      const completionTimeColumn = findColumnName(["完成时间", "完成"]);
-      const peopleCountColumn = findColumnName(["人数", "人员"]);
-      const remarksColumn = findColumnName(["备注", "remarks", "notes"]);
-
-      // Convert to numeric values where needed
-      const processedData = data.map((row) => {
-        const newRow = { ...row };
-
-        // Convert numeric columns to numbers
-        [
-          totalColumn,
-          newSystemColumn,
-          fedexColumn,
-          upsColumn,
-          fedexA008Column,
-          upsA008Column,
-          batteryColumn,
-          fedexStorageColumn,
-          upsStorageColumn,
-          peopleCountColumn,
-        ].forEach((col) => {
-          if (col && newRow[col]) {
-            newRow[col] = parseFloat(newRow[col]) || 0;
-          }
-        });
-
-        return newRow;
-      });
-
-      // 修正1：总寄件量应该是FedEx总量加UPS总量
-      const fedexCount = processedData.reduce(
-        (sum, row) =>
-          sum + (fedexColumn && row[fedexColumn] ? row[fedexColumn] : 0),
-        0
-      );
-
-      const upsCount = processedData.reduce(
-        (sum, row) => sum + (upsColumn && row[upsColumn] ? row[upsColumn] : 0),
-        0
-      );
-
-      const totalShipments = fedexCount + upsCount;
-
-      // Calculate A008 orders for both couriers
-      const fedexA008Count = processedData.reduce(
-        (sum, row) =>
-          sum +
-          (fedexA008Column && row[fedexA008Column] ? row[fedexA008Column] : 0),
-        0
-      );
-
-      const upsA008Count = processedData.reduce(
-        (sum, row) =>
-          sum + (upsA008Column && row[upsA008Column] ? row[upsA008Column] : 0),
-        0
-      );
-
-      // Calculate battery panel and storage panel counts
-      const batteryCount = processedData.reduce(
-        (sum, row) =>
-          sum + (batteryColumn && row[batteryColumn] ? row[batteryColumn] : 0),
-        0
-      );
-
-      const fedexStorageCount = processedData.reduce(
-        (sum, row) =>
-          sum +
-          (fedexStorageColumn && row[fedexStorageColumn]
-            ? row[fedexStorageColumn]
-            : 0),
-        0
-      );
-
-      const upsStorageCount = processedData.reduce(
-        (sum, row) =>
-          sum +
-          (upsStorageColumn && row[upsStorageColumn]
-            ? row[upsStorageColumn]
-            : 0),
-        0
-      );
-
-      // 修正2：计算完成率（六点前完成视为完成，六点后视为未完成）
-      const completedCount = processedData.filter((row) => {
-        if (!completionTimeColumn || !row[completionTimeColumn]) return false;
-
-        // 解析完成时间
-        const timeString = row[completionTimeColumn].toString();
-        const timeParts = timeString.split(":");
-        if (timeParts.length < 2) return false;
-
-        const hours = parseInt(timeParts[0]);
-        return hours < 18; // 18:00之前视为完成
-      }).length;
-
-      const completionRate = (
-        (completedCount / processedData.length) *
-        100
-      ).toFixed(1);
-
-      // 格式化日期，确保是YYYY-MM-DD格式
-      const formatDate = (dateStr) => {
-        if (!dateStr) return "Unknown";
-
-        // 如果日期格式是"4/8"这样的格式，添加年份
-        if (/^\d+\/\d+$/.test(dateStr)) {
-          return dateStr + "/2025";
-        }
-
-        return dateStr;
-      };
-
-      // Group data by date for daily trend
-      const dailyTrend = processedData.map((row) => {
-        return {
-          date:
-            dateColumn && row[dateColumn]
-              ? formatDate(row[dateColumn].toString())
-              : "Unknown",
-          totalCount:
-            fedexColumn && upsColumn
-              ? (row[fedexColumn] || 0) + (row[upsColumn] || 0)
-              : totalColumn && row[totalColumn]
-              ? row[totalColumn]
-              : 0,
-          fedexCount: fedexColumn && row[fedexColumn] ? row[fedexColumn] : 0,
-          upsCount: upsColumn && row[upsColumn] ? row[upsColumn] : 0,
-          fedexA008Count:
-            fedexA008Column && row[fedexA008Column] ? row[fedexA008Column] : 0,
-          upsA008Count:
-            upsA008Column && row[upsA008Column] ? row[upsA008Column] : 0,
-          batteryCount:
-            batteryColumn && row[batteryColumn] ? row[batteryColumn] : 0,
-          fedexStorageCount:
-            fedexStorageColumn && row[fedexStorageColumn]
-              ? row[fedexStorageColumn]
-              : 0,
-          upsStorageCount:
-            upsStorageColumn && row[upsStorageColumn]
-              ? row[upsStorageColumn]
-              : 0,
-          completionTime:
-            completionTimeColumn && row[completionTimeColumn]
-              ? row[completionTimeColumn].toString()
-              : "-",
-        };
-      });
-
-      // Sort by date if possible
-      if (dateColumn) {
-        dailyTrend.sort((a, b) => {
-          if (a.date < b.date) return -1;
-          if (a.date > b.date) return 1;
-          return 0;
-        });
+  // 初始化加载样例数据 - 确保在组件挂载时只执行一次
+  useEffect(() => {
+    console.log("尝试加载数据...");
+    // 从本地存储获取数据
+    const savedData = localStorage.getItem("expressData");
+    if (savedData) {
+      console.log("从localStorage加载数据");
+      try {
+        const parsedData = JSON.parse(savedData);
+        setExpressData(parsedData);
+      } catch (error) {
+        console.error("解析localStorage数据出错:", error);
+        // 解析出错时，使用样例数据
+        console.log("使用样例数据作为后备:", sampleData);
+        setExpressData(sampleData);
+        // 保存样例数据到localStorage
+        localStorage.setItem("expressData", JSON.stringify(sampleData));
       }
+    } else {
+      // 如果没有保存的数据，使用样例数据
+      console.log("没有保存的数据，使用样例数据:", sampleData);
+      setExpressData(sampleData);
+      // 保存样例数据到localStorage
+      localStorage.setItem("expressData", JSON.stringify(sampleData));
+    }
+  }, []);
 
-      // Calculate average shipments per day
-      const averageShipmentsPerDay = Math.round(
-        totalShipments / (dailyTrend.length || 1)
-      );
+  // 调试查看数据状态
+  useEffect(() => {
+    console.log("当前数据状态:", expressData);
+  }, [expressData]);
 
-      // Generate analysis data
-      const analysisResult = {
-        totalShipments,
-        fedexCount,
-        upsCount,
-        fedexA008Count,
-        upsA008Count,
-        batteryCount,
-        fedexStorageCount,
-        upsStorageCount,
-        completionRate,
-        averageShipmentsPerDay,
-        dailyTrend,
-        rawData: processedData,
-        columnMapping: {
-          dateColumn,
-          totalColumn,
-          fedexColumn,
-          upsColumn,
-          fedexA008Column,
-          upsA008Column,
-          batteryColumn,
-          fedexStorageColumn,
-          upsStorageColumn,
-          completionTimeColumn,
-          peopleCountColumn,
-          remarksColumn,
-        },
-      };
+  // 当数据变化时保存到本地存储
+  useEffect(() => {
+    if (expressData.length > 0) {
+      console.log("保存数据到localStorage");
+      localStorage.setItem("expressData", JSON.stringify(expressData));
+    }
+  }, [expressData]);
 
-      setAnalysisData(analysisResult);
-    } catch (error) {
-      console.error("Error analyzing data:", error);
-      // Show a simplified analysis for any valid data
-      const totalShipments = data.length;
-      setAnalysisData({
-        totalShipments,
-        fedexCount: 0,
-        upsCount: 0,
-        completionRate: "0.0",
-        dailyTrend: [],
-        rawData: data,
-      });
+  // 添加数据
+  const handleAddData = (newData) => {
+    console.log("添加新数据:", newData);
+    setExpressData((prevData) => [...prevData, newData]);
+  };
+
+  // 更新数据
+  const handleUpdateData = (oldData, newData) => {
+    console.log("更新数据:", oldData, "->", newData);
+    const updatedData = expressData.map((item) =>
+      item === oldData ? newData : item
+    );
+    setExpressData(updatedData);
+  };
+
+  // 删除数据
+  const handleDeleteData = (dataToDelete) => {
+    console.log("删除数据:", dataToDelete);
+    const filteredData = expressData.filter((item) => item !== dataToDelete);
+    setExpressData(filteredData);
+  };
+
+  // 手动重置数据（仅用于调试）
+  const resetToSampleData = () => {
+    console.log("重置为样例数据");
+    setExpressData(sampleData);
+    message.success("数据已重置为样例数据");
+  };
+
+  // 处理管理员操作
+  const handleAdminAction = () => {
+    if (isAdmin) {
+      // 登出
+      adminLogout();
+      message.success("已退出管理员模式");
+    } else {
+      // 跳转到登录页
+      window.location.href = "/login";
     }
   };
 
+  const [selectedKey, setSelectedKey] = useState("1");
+
   return (
     <Layout className="app-layout">
-      <Header />
-      <Content className="app-content">
-        <div className="container">
-          <FileUpload onDataAnalysis={handleDataAnalysis} />
-          {analysisData && <DataAnalysis data={analysisData} />}
+      <Sider trigger={null} collapsible collapsed={collapsed}>
+        <div className="logo">
+          <span>{collapsed ? "📊" : "📊 快递数据分析"}</span>
         </div>
-      </Content>
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          onSelect={({ key }) => setSelectedKey(key)}
+        >
+          <Menu.Item key="1" icon={<DashboardOutlined />}>
+            <Link to="/dashboard">数据仪表盘</Link>
+          </Menu.Item>
+          <Menu.Item key="2" icon={<DatabaseOutlined />}>
+            <Link to="/data">数据管理</Link>
+          </Menu.Item>
+        </Menu>
+      </Sider>
+      <Layout className="site-layout">
+        <Header className="site-header">
+          {React.createElement(
+            collapsed ? MenuUnfoldOutlined : MenuFoldOutlined,
+            {
+              className: "trigger",
+              onClick: () => setCollapsed(!collapsed),
+            }
+          )}
+          <div className="header-right">
+            {/* 仅在开发环境显示的调试按钮 */}
+            {process.env.NODE_ENV === "development" && (
+              <Button onClick={resetToSampleData} style={{ marginRight: 10 }}>
+                重置数据
+              </Button>
+            )}
+            <Button
+              icon={isAdmin ? <UnlockOutlined /> : <LockOutlined />}
+              type={isAdmin ? "primary" : "default"}
+              onClick={handleAdminAction}
+            >
+              {isAdmin ? "退出管理员模式" : "管理员登录"}
+            </Button>
+          </div>
+        </Header>
+        <Content className="site-content">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/dashboard"
+              element={<Dashboard data={expressData} />}
+            />
+            <Route
+              path="/data"
+              element={
+                <div>
+                  <DataEntry onDataAdded={handleAddData} />
+                  <DataTable
+                    data={expressData}
+                    onDataUpdated={handleUpdateData}
+                    onDataDeleted={handleDeleteData}
+                  />
+                </div>
+              }
+            />
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          </Routes>
+        </Content>
+      </Layout>
     </Layout>
+  );
+}
+
+// 应用程序主组件
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={<MainLayout />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

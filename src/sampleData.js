@@ -1,10 +1,10 @@
-// Sample data matching the format in the image
+// src/sampleData.js - 更新为易仓系统的样例数据
 export const sampleData = [
   {
     日期: "4/8",
-    寄件总量: 553,
+    易仓系统总量: 553,
     新系统总量: 10,
-    FedEx总数量: 563,
+    FedEx总数量: 482,
     UPS总数量: 81,
     FedEx中A008订单数: 246,
     UPS中A008订单数: 45,
@@ -17,7 +17,7 @@ export const sampleData = [
   },
   {
     日期: "4/9",
-    寄件总量: 454,
+    易仓系统总量: 454,
     新系统总量: 8,
     FedEx总数量: 390,
     UPS总数量: 64,
@@ -32,7 +32,7 @@ export const sampleData = [
   },
   {
     日期: "4/10",
-    寄件总量: 571,
+    易仓系统总量: 571,
     新系统总量: 2,
     FedEx总数量: 497,
     UPS总数量: 76,
@@ -47,7 +47,7 @@ export const sampleData = [
   },
   {
     日期: "4/11",
-    寄件总量: 502,
+    易仓系统总量: 502,
     新系统总量: 6,
     FedEx总数量: 431,
     UPS总数量: 77,
@@ -62,7 +62,7 @@ export const sampleData = [
   },
   {
     日期: "4/14",
-    寄件总量: 1407,
+    易仓系统总量: 1407,
     新系统总量: 27,
     FedEx总数量: 1260,
     UPS总数量: 174,
@@ -77,7 +77,7 @@ export const sampleData = [
   },
   {
     日期: "4/15",
-    寄件总量: 689,
+    易仓系统总量: 689,
     新系统总量: 12,
     FedEx总数量: 586,
     UPS总数量: 103,
@@ -92,7 +92,7 @@ export const sampleData = [
   },
   {
     日期: "4/16",
-    寄件总量: 528,
+    易仓系统总量: 528,
     新系统总量: 12,
     FedEx总数量: 463,
     UPS总数量: 77,
@@ -107,7 +107,7 @@ export const sampleData = [
   },
   {
     日期: "4/17",
-    寄件总量: 581,
+    易仓系统总量: 581,
     新系统总量: 9,
     FedEx总数量: 528,
     UPS总数量: 62,
@@ -122,7 +122,7 @@ export const sampleData = [
   },
   {
     日期: "4/18",
-    寄件总量: 641,
+    易仓系统总量: 641,
     新系统总量: 4,
     FedEx总数量: 530,
     UPS总数量: 115,
