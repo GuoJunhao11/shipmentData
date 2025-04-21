@@ -23,10 +23,28 @@ const ExpressDataForm = ({
   useEffect(() => {
     if (visible && initialValues) {
       // 如果有初始值，格式化日期
-      form.setFieldsValue({
-        ...initialValues,
-        日期: initialValues.日期 ? moment(initialValues.日期, "M/D") : null,
-      });
+      const formattedValues = { ...initialValues };
+
+      // 使用moment处理日期，确保它是一个moment对象
+      if (initialValues.日期 && typeof initialValues.日期 === "string") {
+        // 假设日期格式为 "M/D"，添加当前年份使其成为有效日期
+        const currentYear = new Date().getFullYear();
+        const dateParts = initialValues.日期.split("/");
+        if (dateParts.length === 2) {
+          const month = parseInt(dateParts[0], 10) - 1; // moment月份从0开始
+          const day = parseInt(dateParts[1], 10);
+          formattedValues.日期 = moment()
+            .year(currentYear)
+            .month(month)
+            .date(day);
+        } else {
+          formattedValues.日期 = null;
+        }
+      } else {
+        formattedValues.日期 = null;
+      }
+
+      form.setFieldsValue(formattedValues);
     } else if (visible) {
       form.resetFields();
     }
@@ -36,16 +54,16 @@ const ExpressDataForm = ({
     try {
       setSubmitLoading(true);
 
-      // 格式化日期为 "M/D" 格式
-      const formattedValues = {
-        ...values,
-        日期: values.日期.format("M/D"),
-      };
+      // 确保日期是有效的moment对象，然后格式化为 "M/D" 格式
+      let formattedValues = { ...values };
+      if (values.日期 && moment.isMoment(values.日期)) {
+        formattedValues.日期 = values.日期.format("M/D");
+      }
 
       await onSubmit(formattedValues);
       form.resetFields();
     } catch (error) {
-      message.error("提交失败: " + error.message);
+      message.error("提交失败: " + (error.message || "未知错误"));
     } finally {
       setSubmitLoading(false);
     }
@@ -60,12 +78,7 @@ const ExpressDataForm = ({
       width={800}
       destroyOnClose
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        initialValues={initialValues}
-      >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
           name="日期"
           label="日期"

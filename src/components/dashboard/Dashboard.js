@@ -1,13 +1,105 @@
-// src/components/dashboard/Dashboard.js - 使用MongoDB数据
-import React, { useState } from "react";
-import { Card, Row, Col, Statistic, Tabs, Spin, Alert } from "antd";
+// src/components/dashboard/Dashboard.js - 改进版本
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Tabs,
+  Spin,
+  Alert,
+  Select,
+  Space,
+} from "antd";
+import { FilterOutlined } from "@ant-design/icons";
 import ReactECharts from "echarts-for-react";
 import { useExpressData } from "../../hooks/useExpressData";
 import ServerStatus from "../ServerStatus";
+import moment from "moment";
+
+const { Option } = Select;
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState("daily");
+  const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
   const { data, loading, error, serverStatus, checkStatus } = useExpressData();
+  const [filteredData, setFilteredData] = useState([]);
+
+  // 设置工作起始时间为09:00
+  const workStartTime = "09:00";
+
+  // 根据时间范围筛选数据
+  useEffect(() => {
+    if (!data || data.length === 0) {
+      setFilteredData([]);
+      return;
+    }
+
+    const currentDate = moment();
+    let filteredResult = [...data];
+
+    switch (timeRange) {
+      case "week":
+        // 过去一周的数据
+        filteredResult = data.filter((item) => {
+          const itemDate = parseDate(item.日期);
+          return itemDate && currentDate.diff(itemDate, "days") < 7;
+        });
+        break;
+      case "month":
+        // 过去一个月的数据
+        filteredResult = data.filter((item) => {
+          const itemDate = parseDate(item.日期);
+          return itemDate && currentDate.diff(itemDate, "days") < 30;
+        });
+        break;
+      case "quarter":
+        // 过去三个月的数据
+        filteredResult = data.filter((item) => {
+          const itemDate = parseDate(item.日期);
+          return itemDate && currentDate.diff(itemDate, "days") < 90;
+        });
+        break;
+      case "halfYear":
+        // 过去六个月的数据
+        filteredResult = data.filter((item) => {
+          const itemDate = parseDate(item.日期);
+          return itemDate && currentDate.diff(itemDate, "days") < 180;
+        });
+        break;
+      case "year":
+        // 过去一年的数据
+        filteredResult = data.filter((item) => {
+          const itemDate = parseDate(item.日期);
+          return itemDate && currentDate.diff(itemDate, "days") < 365;
+        });
+        break;
+      default:
+        // 全部数据
+        filteredResult = [...data];
+    }
+
+    // 按日期排序
+    filteredResult.sort((a, b) => {
+      const dateA = parseDate(a.日期);
+      const dateB = parseDate(b.日期);
+      if (!dateA || !dateB) return 0;
+      return dateA - dateB;
+    });
+
+    setFilteredData(filteredResult);
+  }, [data, timeRange]);
+
+  // 解析日期字符串为moment对象
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    const currentYear = moment().year();
+    const [month, day] = dateStr.split("/").map(Number);
+    return moment()
+      .year(currentYear)
+      .month(month - 1)
+      .date(day);
+  };
 
   // 加载状态
   if (loading) {
@@ -25,15 +117,41 @@ function Dashboard() {
       <Alert message="数据加载失败" description={error} type="error" showIcon />
     );
   }
-
   // 确保数据可用
-  if (!data || data.length === 0) {
+  if (!filteredData || filteredData.length === 0) {
     return (
       <div style={{ padding: "20px" }}>
         <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "16px",
+          }}
+        >
+          <Space>
+            <span>
+              <FilterOutlined /> 时间范围:{" "}
+            </span>
+            <Select
+              value={timeRange}
+              onChange={(value) => setTimeRange(value)}
+              style={{ width: 120 }}
+            >
+              <Option value="all">全部</Option>
+              <Option value="week">一周</Option>
+              <Option value="month">一个月</Option>
+              <Option value="quarter">三个月</Option>
+              <Option value="halfYear">半年</Option>
+              <Option value="year">一年</Option>
+            </Select>
+          </Space>
+        </div>
         <Card title="仪表盘" className="card">
           <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <p>暂无数据。请在数据管理页面添加快递数据。</p>
+            <p>
+              所选时间范围内暂无数据。请在数据管理页面添加快递数据或选择其他时间范围。
+            </p>
           </div>
         </Card>
       </div>
@@ -103,7 +221,6 @@ function Dashboard() {
       (sum, row) => sum + (row.UPS含库板数 || 0),
       0
     );
-
     // 计算平均完成时间
     let totalMinutes = 0;
     let timeEntryCount = 0;
@@ -127,6 +244,36 @@ function Dashboard() {
       .toString()
       .padStart(2, "0")}:${avgMins.toString().padStart(2, "0")}`;
 
+    // 计算平均工作效率（从9:00到完成时间）
+    let totalEfficiencyMinutes = 0;
+    let efficiencyCount = 0;
+
+    rawData.forEach((row) => {
+      if (row.完成时间) {
+        const completionTime = moment(row.完成时间, "HH:mm");
+        const startTime = moment(workStartTime, "HH:mm");
+
+        if (completionTime.isValid() && startTime.isValid()) {
+          // 只计算在工作时间后完成的情况
+          if (completionTime.isAfter(startTime)) {
+            const diffMinutes = completionTime.diff(startTime, "minutes");
+            totalEfficiencyMinutes += diffMinutes;
+            efficiencyCount++;
+          }
+        }
+      }
+    });
+
+    let avgEfficiency = "N/A";
+    if (efficiencyCount > 0) {
+      const avgEffMinutes = Math.round(
+        totalEfficiencyMinutes / efficiencyCount
+      );
+      const effHours = Math.floor(avgEffMinutes / 60);
+      const effMins = avgEffMinutes % 60;
+      avgEfficiency = `${effHours}小时${effMins}分钟`;
+    }
+
     // 计算人均处理单量
     const totalStaff = rawData.reduce((sum, row) => sum + (row.人数 || 0), 0);
 
@@ -142,6 +289,26 @@ function Dashboard() {
       const dailyA008Percentage =
         dailyTotal > 0 ? (dailyA008Total / dailyTotal) * 100 : 0;
 
+      // 计算工作效率（从9:00到完成时间）
+      let efficiency = null;
+      if (row.完成时间) {
+        const completionTime = moment(row.完成时间, "HH:mm");
+        const startTime = moment(workStartTime, "HH:mm");
+
+        if (completionTime.isValid() && startTime.isValid()) {
+          if (completionTime.isAfter(startTime)) {
+            const diffMinutes = completionTime.diff(startTime, "minutes");
+            efficiency = diffMinutes;
+          } else {
+            efficiency = 0; // 完成时间早于上班时间
+          }
+        }
+      }
+
+      // 计算人均处理效率
+      const staffCount = row.人数 || 0;
+      const perPersonHandling =
+        staffCount > 0 ? Math.round(dailyTotal / staffCount) : 0;
       return {
         date: row.日期,
         totalOrderCount: dailyTotal,
@@ -157,19 +324,10 @@ function Dashboard() {
         fedexStorageCount: row.FedEx含库板数 || 0,
         upsStorageCount: row.UPS含库板数 || 0,
         completionTime: row.完成时间 || "-",
-        staffCount: row.人数 || 0,
+        staffCount: staffCount,
+        perPersonHandling: perPersonHandling,
+        efficiency: efficiency,
       };
-    });
-
-    // 排序日期
-    dailyTrend.sort((a, b) => {
-      // 提取日期部分进行比较
-      const partsA = a.date.split("/").map(Number);
-      const partsB = b.date.split("/").map(Number);
-
-      // 比较月份和日期
-      if (partsA[0] !== partsB[0]) return partsA[0] - partsB[0];
-      return partsA[1] - partsB[1];
     });
 
     return {
@@ -187,12 +345,13 @@ function Dashboard() {
       upsStorageCount,
       averageCompletionTime,
       avgOrdersPerPerson,
+      avgEfficiency,
       dailyTrend,
     };
   };
 
   // 处理数据
-  const analysisData = processData(data);
+  const analysisData = processData(filteredData);
 
   // 准备每日趋势图表
   const dailyTrendOption = {
@@ -345,7 +504,6 @@ function Dashboard() {
       },
     ],
   };
-
   // 准备A008订单分析图表 - 修改为占比分析
   const a008OrdersOption = {
     tooltip: {
@@ -467,7 +625,7 @@ function Dashboard() {
     ],
   };
 
-  // 准备人效分析图表
+  // 准备工作效率分析图表 - 新增
   const efficiencyOption = {
     tooltip: {
       trigger: "axis",
@@ -477,12 +635,83 @@ function Dashboard() {
       formatter: function (params) {
         const idx = params[0].dataIndex;
         const item = analysisData.dailyTrend[idx];
-        const efficiency =
-          item.staffCount > 0
-            ? Math.round(item.totalOrderCount / item.staffCount)
-            : 0;
+
+        // 格式化效率展示
+        let efficiencyStr = "N/A";
+        if (item.efficiency !== null) {
+          if (item.efficiency === 0) {
+            efficiencyStr = "提前完成";
+          } else {
+            const hours = Math.floor(item.efficiency / 60);
+            const mins = item.efficiency % 60;
+            efficiencyStr = `${hours}小时${mins}分钟`;
+          }
+        }
+
         return `${params[0].name}<br/>
-                人均处理: ${efficiency} 单/人<br/>
+                工作效率: ${efficiencyStr}<br/>
+                完成时间: ${item.completionTime}<br/>
+                开始时间: ${workStartTime}<br/>
+                总单量: ${item.totalOrderCount}<br/>
+                人数: ${item.staffCount}`;
+      },
+    },
+    grid: {
+      left: "3%",
+      right: "4%",
+      bottom: "3%",
+      containLabel: true,
+    },
+    xAxis: {
+      type: "category",
+      data: analysisData.dailyTrend.map((item) => item.date),
+    },
+    yAxis: {
+      type: "value",
+      name: "工作时长(分钟)",
+    },
+    series: [
+      {
+        name: "工作效率",
+        type: "bar",
+        data: analysisData.dailyTrend.map((item) =>
+          item.efficiency !== null
+            ? item.efficiency === 0
+              ? null
+              : item.efficiency
+            : null
+        ),
+        itemStyle: {
+          color: "#2ecc71",
+        },
+        markLine: {
+          data: [
+            {
+              name: "平均效率",
+              type: "average",
+              label: {
+                formatter: "平均: {c}分钟",
+                position: "end",
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  // 准备人效分析图表 - 修改
+  const perPersonOption = {
+    tooltip: {
+      trigger: "axis",
+      axisPointer: {
+        type: "shadow",
+      },
+      formatter: function (params) {
+        const idx = params[0].dataIndex;
+        const item = analysisData.dailyTrend[idx];
+        return `${params[0].name}<br/>
+                人均处理: ${item.perPersonHandling} 单/人<br/>
                 总单量: ${item.totalOrderCount}<br/>
                 人数: ${item.staffCount}`;
       },
@@ -505,19 +734,27 @@ function Dashboard() {
       {
         name: "人均处理单量",
         type: "bar",
-        data: analysisData.dailyTrend.map((item) =>
-          item.staffCount > 0
-            ? Math.round(item.totalOrderCount / item.staffCount)
-            : 0
-        ),
+        data: analysisData.dailyTrend.map((item) => item.perPersonHandling),
         itemStyle: {
-          color: "#2ecc71",
+          color: "#3498db",
+        },
+        markLine: {
+          data: [
+            {
+              name: "平均人效",
+              type: "average",
+              label: {
+                formatter: "平均: {c}单/人",
+                position: "end",
+              },
+            },
+          ],
         },
       },
     ],
   };
 
-  // Tabs项目
+  // Tabs项目 - 增加了效率分析
   const items = [
     {
       key: "daily",
@@ -557,9 +794,16 @@ function Dashboard() {
     },
     {
       key: "efficiency",
-      label: "人效分析",
+      label: "工作效率分析",
       children: (
         <ReactECharts option={efficiencyOption} style={{ height: 400 }} />
+      ),
+    },
+    {
+      key: "perPerson",
+      label: "人效分析",
+      children: (
+        <ReactECharts option={perPersonOption} style={{ height: 400 }} />
       ),
     },
   ];
@@ -567,6 +811,33 @@ function Dashboard() {
   return (
     <div style={{ padding: "20px" }}>
       <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
+
+      {/* 时间范围选择器 */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "16px",
+        }}
+      >
+        <Space>
+          <span>
+            <FilterOutlined /> 时间范围:{" "}
+          </span>
+          <Select
+            value={timeRange}
+            onChange={(value) => setTimeRange(value)}
+            style={{ width: 120 }}
+          >
+            <Option value="all">全部</Option>
+            <Option value="week">一周</Option>
+            <Option value="month">一个月</Option>
+            <Option value="quarter">三个月</Option>
+            <Option value="halfYear">半年</Option>
+            <Option value="year">一年</Option>
+          </Select>
+        </Space>
+      </div>
 
       <Card title="仪表盘" className="card">
         {/* 顶部统计 */}
@@ -604,7 +875,7 @@ function Dashboard() {
                 title="平均人效"
                 value={analysisData.avgOrdersPerPerson}
                 suffix="单/人"
-                valueStyle={{ color: "#2ecc71" }}
+                valueStyle={{ color: "#3498db" }}
               />
             </Card>
           </Col>
@@ -638,6 +909,46 @@ function Dashboard() {
                 suffix="%"
                 precision={1}
                 valueStyle={{ color: "#eb2f96" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="平均工作效率"
+                value={analysisData.avgEfficiency}
+                valueStyle={{ color: "#2ecc71" }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 第三行统计 - 增加更多详细信息 */}
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="电池板数"
+                value={analysisData.batteryCount}
+                valueStyle={{ color: "#faad14" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="FedEx库板数"
+                value={analysisData.fedexStorageCount}
+                valueStyle={{ color: "#722ed1" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={6}>
+            <Card>
+              <Statistic
+                title="UPS库板数"
+                value={analysisData.upsStorageCount}
+                valueStyle={{ color: "#13c2c2" }}
               />
             </Card>
           </Col>

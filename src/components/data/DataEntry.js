@@ -21,6 +21,11 @@ import moment from "moment"; // 引入moment
 
 const { TextArea } = Input;
 
+// 添加日期验证函数
+const isValidDate = (date) => {
+  return date && moment(date).isValid();
+};
+
 function DataEntry({ onDataAdded }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -95,7 +100,15 @@ function DataEntry({ onDataAdded }) {
             <Form.Item
               name="date"
               label="日期"
-              rules={[{ required: true, message: "请选择日期" }]}
+              rules={[
+                { required: true, message: "请选择日期" },
+                {
+                  validator: (_, value) =>
+                    isValidDate(value)
+                      ? Promise.resolve()
+                      : Promise.reject("请输入有效的日期"),
+                },
+              ]}
             >
               <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
             </Form.Item>
