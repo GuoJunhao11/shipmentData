@@ -20,6 +20,7 @@ app.get("/api/status", (req, res) => {
   res.json({ status: "online", message: "MongoDB服务器运行正常" });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => console.log(`服务器运行在端口: ${PORT}`));
+console.log("环境变量 MONGODB_URI =", process.env.MONGODB_URI);

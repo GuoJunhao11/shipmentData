@@ -1,4 +1,3 @@
-// src/components/auth/Login.js - 移除密码提示
 import React, { useState, useContext } from "react";
 import { Form, Input, Button, Card } from "antd";
 import { LockOutlined } from "@ant-design/icons";
@@ -10,17 +9,19 @@ const Login = () => {
   const { adminLogin } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // ✅ 在组件顶层调用 useForm()
+  const [form] = Form.useForm();
+
   const onFinish = (values) => {
     setLoading(true);
 
     setTimeout(() => {
       const success = adminLogin(values.password);
       if (success) {
-        // 登录成功，跳转到仪表盘
         navigate("/dashboard");
       } else {
-        // 登录失败，显示错误
-        Form.useForm()[0].setFields([
+        // ✅ 正确地使用 form.setFields()
+        form.setFields([
           {
             name: "password",
             errors: ["管理员密码错误"],
@@ -43,6 +44,7 @@ const Login = () => {
     >
       <Card title="快递数据分析系统 - 管理员登录" style={{ width: 400 }}>
         <Form
+          form={form} // ✅ 将 form 绑定到表单中
           name="login"
           initialValues={{ remember: true }}
           onFinish={onFinish}
