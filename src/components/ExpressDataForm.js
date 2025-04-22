@@ -27,18 +27,25 @@ const ExpressDataForm = ({
 
       // 使用moment处理日期，确保它是一个moment对象
       if (initialValues.日期 && typeof initialValues.日期 === "string") {
-        // 假设日期格式为 "M/D"，添加当前年份使其成为有效日期
-        const currentYear = new Date().getFullYear();
-        const dateParts = initialValues.日期.split("/");
-        if (dateParts.length === 2) {
-          const month = parseInt(dateParts[0], 10) - 1; // moment月份从0开始
-          const day = parseInt(dateParts[1], 10);
+        // 处理不同格式的日期
+        if (initialValues.日期.includes("T")) {
+          // 处理ISO格式: 2025-04-22T03:04:58.500Z
+          const date = new Date(initialValues.日期);
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
           formattedValues.日期 = moment()
-            .year(currentYear)
-            .month(month)
+            .month(month - 1)
             .date(day);
         } else {
-          formattedValues.日期 = null;
+          // 处理简单格式: 4/21
+          const dateParts = initialValues.日期.split("/");
+          if (dateParts.length === 2) {
+            const month = parseInt(dateParts[0], 10) - 1; // moment月份从0开始
+            const day = parseInt(dateParts[1], 10);
+            formattedValues.日期 = moment().month(month).date(day);
+          } else {
+            formattedValues.日期 = null;
+          }
         }
       } else {
         formattedValues.日期 = null;
@@ -54,10 +61,30 @@ const ExpressDataForm = ({
     try {
       setSubmitLoading(true);
 
-      // 确保日期是有效的moment对象，然后格式化为 "M/D" 格式
+      // 确保日期格式一致 - 始终使用 M/D 格式
       let formattedValues = { ...values };
-      if (values.日期 && moment.isMoment(values.日期)) {
-        formattedValues.日期 = values.日期.format("M/D");
+
+      if (values.日期) {
+        // 处理moment对象
+        if (moment.isMoment(values.日期)) {
+          formattedValues.日期 = values.日期.format("M/D");
+        }
+        // 处理ISO字符串
+        else if (typeof values.日期 === "string" && values.日期.includes("T")) {
+          const date = new Date(values.日期);
+          formattedValues.日期 = `${date.getMonth() + 1}/${date.getDate()}`;
+        }
+        // 处理已经是 M/D 格式的字符串
+        else if (typeof values.日期 === "string" && values.日期.includes("/")) {
+          // 保持原格式
+          formattedValues.日期 = values.日期;
+        }
+        // 处理Date对象
+        else if (values.日期 instanceof Date) {
+          formattedValues.日期 = `${
+            values.日期.getMonth() + 1
+          }/${values.日期.getDate()}`;
+        }
       }
 
       await onSubmit(formattedValues);
