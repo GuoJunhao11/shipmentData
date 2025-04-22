@@ -25,27 +25,37 @@ const ExpressDataForm = ({
       // 如果有初始值，格式化日期
       const formattedValues = { ...initialValues };
 
-      // 使用moment处理日期，确保它是一个moment对象
+      // 处理日期字段，转换为moment对象
       if (initialValues.日期 && typeof initialValues.日期 === "string") {
-        // 处理不同格式的日期
-        if (initialValues.日期.includes("T")) {
-          // 处理ISO格式: 2025-04-22T03:04:58.500Z
-          const date = new Date(initialValues.日期);
-          const month = date.getMonth() + 1;
-          const day = date.getDate();
-          formattedValues.日期 = moment()
-            .month(month - 1)
-            .date(day);
-        } else {
-          // 处理简单格式: 4/21
-          const dateParts = initialValues.日期.split("/");
-          if (dateParts.length === 2) {
-            const month = parseInt(dateParts[0], 10) - 1; // moment月份从0开始
-            const day = parseInt(dateParts[1], 10);
-            formattedValues.日期 = moment().month(month).date(day);
-          } else {
-            formattedValues.日期 = null;
+        let dateMoment = null;
+
+        // 处理 MM/DD/YYYY 格式
+        if (initialValues.日期.includes("/")) {
+          const parts = initialValues.日期.split("/");
+          if (parts.length === 3) {
+            // MM/DD/YYYY 格式
+            dateMoment = moment(
+              `${parts[2]}-${parts[0]}-${parts[1]}`,
+              "YYYY-MM-DD"
+            );
+          } else if (parts.length === 2) {
+            // M/D 格式，添加当前年份
+            const currentYear = moment().year();
+            dateMoment = moment(
+              `${currentYear}-${parts[0]}-${parts[1]}`,
+              "YYYY-MM-DD"
+            );
           }
+        }
+        // 处理ISO格式
+        else if (initialValues.日期.includes("T")) {
+          dateMoment = moment(initialValues.日期);
+        }
+
+        if (dateMoment && dateMoment.isValid()) {
+          formattedValues.日期 = dateMoment;
+        } else {
+          formattedValues.日期 = null;
         }
       } else {
         formattedValues.日期 = null;
@@ -61,29 +71,36 @@ const ExpressDataForm = ({
     try {
       setSubmitLoading(true);
 
-      // 确保日期格式一致 - 始终使用 M/D 格式
+      // 确保日期格式为 MM/DD/YYYY
       let formattedValues = { ...values };
 
       if (values.日期) {
         // 处理moment对象
-        if (moment.isMoment(values.日期)) {
-          formattedValues.日期 = values.日期.format("M/D");
+        if (moment.isMoment(values.日期) && values.日期.isValid()) {
+          formattedValues.日期 = values.日期.format("MM/DD/YYYY");
         }
-        // 处理ISO字符串
-        else if (typeof values.日期 === "string" && values.日期.includes("T")) {
-          const date = new Date(values.日期);
-          formattedValues.日期 = `${date.getMonth() + 1}/${date.getDate()}`;
-        }
-        // 处理已经是 M/D 格式的字符串
-        else if (typeof values.日期 === "string" && values.日期.includes("/")) {
-          // 保持原格式
-          formattedValues.日期 = values.日期;
-        }
-        // 处理Date对象
-        else if (values.日期 instanceof Date) {
-          formattedValues.日期 = `${
-            values.日期.getMonth() + 1
-          }/${values.日期.getDate()}`;
+        // 处理字符串格式
+        else if (typeof values.日期 === "string") {
+          // 如果已经是 MM/DD/YYYY 格式
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(values.日期)) {
+            formattedValues.日期 = values.日期;
+          }
+          // ISO格式转换
+          else if (values.日期.includes("T")) {
+            const date = new Date(values.日期);
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            formattedValues.日期 = `${month}/${day}/${date.getFullYear()}`;
+          }
+          // 简单 M/D 格式
+          else if (values.日期.includes("/")) {
+            const parts = values.日期.split("/");
+            if (parts.length === 2) {
+              const month = String(parseInt(parts[0])).padStart(2, "0");
+              const day = String(parseInt(parts[1])).padStart(2, "0");
+              formattedValues.日期 = `${month}/${day}/${new Date().getFullYear()}`;
+            }
+          }
         }
       }
 
@@ -112,7 +129,7 @@ const ExpressDataForm = ({
           rules={[{ required: true, message: "请选择日期" }]}
         >
           <DatePicker
-            format="M/D"
+            format="MM/DD/YYYY"
             placeholder="选择日期"
             style={{ width: "100%" }}
           />
