@@ -1,0 +1,13 @@
+
+services:
+  - type: web
+    name: courier-analytics
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run render-start
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://guojunhao427:1234@cluster0.wonffqe.mongodb.net/courierData?retryWrites=true&w=majority&appName=Cluster0
+      - key: PORT
+        value: 10000

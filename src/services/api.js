@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5001/api";
+// 重要修改: 使用相对路径，这样在同一服务上就能正常工作
+const API_URL = "/api";
 
 // 加载数据
 export const loadExpressData = async () => {
