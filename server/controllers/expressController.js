@@ -1,35 +1,41 @@
+// server/controllers/expressController.js
 const ExpressData = require("../models/ExpressData");
 
-// 日期格式化函数 - 统一转换为 MM/DD/YYYY
+// 日期格式化函数 - 标准化为 MM/DD/YYYY
 const formatDate = (dateStr) => {
   if (!dateStr) return dateStr;
 
-  // 处理ISO格式日期
-  if (typeof dateStr === "string" && dateStr.includes("T")) {
-    const date = new Date(dateStr);
-    return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(
-      date.getDate()
-    ).padStart(2, "0")}/${date.getFullYear()}`;
-  }
-
-  // 处理简单的 M/D 格式
-  if (typeof dateStr === "string" && dateStr.includes("/")) {
-    const parts = dateStr.split("/");
-    if (parts.length === 2) {
-      const month = String(parseInt(parts[0])).padStart(2, "0");
-      const day = String(parseInt(parts[1])).padStart(2, "0");
-      const year = new Date().getFullYear();
+  try {
+    // 处理ISO格式日期
+    if (typeof dateStr === "string" && dateStr.includes("T")) {
+      const date = new Date(dateStr);
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, "0");
+      const year = date.getFullYear();
       return `${month}/${day}/${year}`;
     }
-    // 已经是 MM/DD/YYYY 格式
-    if (parts.length === 3) {
-      const month = String(parseInt(parts[0])).padStart(2, "0");
-      const day = String(parseInt(parts[1])).padStart(2, "0");
-      return `${month}/${day}/${parts[2]}`;
+
+    // 处理简单 M/D 格式
+    if (typeof dateStr === "string" && dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 2) {
+        const month = parts[0].padStart(2, "0");
+        const day = parts[1].padStart(2, "0");
+        const year = new Date().getFullYear();
+        return `${month}/${day}/${year}`;
+      } else if (parts.length === 3) {
+        // 已经是完整日期，但确保格式正确
+        const month = parts[0].padStart(2, "0");
+        const day = parts[1].padStart(2, "0");
+        const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+        return `${month}/${day}/${year}`;
+      }
     }
+  } catch (e) {
+    console.error("日期格式化错误:", e);
   }
 
-  return dateStr;
+  return dateStr; // 如果无法处理，返回原值
 };
 
 // 获取所有快递数据
@@ -58,7 +64,7 @@ exports.getExpressDataById = async (req, res) => {
 // 添加快递数据
 exports.createExpressData = async (req, res) => {
   try {
-    // 格式化日期字段
+    // 格式化日期
     const data = { ...req.body };
     if (data.日期) {
       data.日期 = formatDate(data.日期);
@@ -75,7 +81,7 @@ exports.createExpressData = async (req, res) => {
 // 更新快递数据
 exports.updateExpressData = async (req, res) => {
   try {
-    // 格式化日期字段
+    // 格式化日期
     const data = { ...req.body };
     if (data.日期) {
       data.日期 = formatDate(data.日期);

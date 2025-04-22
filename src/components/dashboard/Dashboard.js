@@ -18,28 +18,70 @@ import ServerStatus from "../ServerStatus";
 import moment from "moment";
 
 const { Option } = Select;
+
+// 日期格式化辅助函数
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return "";
+
+  try {
+    // 处理ISO格式
+    if (dateStr.includes("T")) {
+      const date = new Date(dateStr);
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, "0");
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    }
+
+    // 处理MM/DD/YYYY格式
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        return dateStr; // 已经是正确格式
+      } else if (parts.length === 2) {
+        // M/D格式，添加年份并标准化
+        const month = parts[0].padStart(2, "0");
+        const day = parts[1].padStart(2, "0");
+        const year = new Date().getFullYear();
+        return `${month}/${day}/${year}`;
+      }
+    }
+
+    return dateStr;
+  } catch (e) {
+    console.error("日期显示格式化错误:", e);
+    return dateStr;
+  }
+};
+
+// 解析日期用于排序和比较
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
 
-  // 处理 MM/DD/YYYY 格式
-  if (dateStr.includes("/")) {
-    const parts = dateStr.split("/");
-    if (parts.length === 3) {
-      // MM/DD/YYYY 格式
-      return moment(`${parts[2]}-${parts[0]}-${parts[1]}`, "YYYY-MM-DD");
-    } else if (parts.length === 2) {
-      // M/D 格式，添加当前年份
-      const currentYear = moment().year();
-      return moment(`${currentYear}-${parts[0]}-${parts[1]}`, "YYYY-MM-DD");
+  try {
+    // 处理ISO格式
+    if (dateStr.includes("T")) {
+      return moment(dateStr);
     }
-  }
-  // 处理ISO格式
-  else if (dateStr.includes("T")) {
-    return moment(dateStr);
-  }
 
-  return null;
+    // 处理MM/DD/YYYY格式
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        return moment(`${parts[2]}-${parts[0]}-${parts[1]}`, "YYYY-MM-DD");
+      } else if (parts.length === 2) {
+        const currentYear = moment().year();
+        return moment(`${currentYear}-${parts[0]}-${parts[1]}`, "YYYY-MM-DD");
+      }
+    }
+
+    return moment(dateStr);
+  } catch (e) {
+    console.error("日期解析错误:", e);
+    return null;
+  }
 };
+
 function Dashboard() {
   const [activeTab, setActiveTab] = useState("daily");
   const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
@@ -110,17 +152,6 @@ function Dashboard() {
 
     setFilteredData(filteredResult);
   }, [data, timeRange]);
-
-  // 解析日期字符串为moment对象
-  const parseDate = (dateStr) => {
-    if (!dateStr) return null;
-    const currentYear = moment().year();
-    const [month, day] = dateStr.split("/").map(Number);
-    return moment()
-      .year(currentYear)
-      .month(month - 1)
-      .date(day);
-  };
 
   // 加载状态
   if (loading) {
@@ -330,8 +361,13 @@ function Dashboard() {
       const staffCount = row.人数 || 0;
       const perPersonHandling =
         staffCount > 0 ? Math.round(dailyTotal / staffCount) : 0;
+
+      // 格式化日期显示
+      const formattedDate = formatDisplayDate(row.日期);
+
       return {
         date: row.日期,
+        displayDate: formattedDate,
         totalOrderCount: dailyTotal,
         fedexCount: row.FedEx总数量 || 0,
         upsCount: row.UPS总数量 || 0,
@@ -384,7 +420,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
       name: "日期",
       nameLocation: "middle",
       nameGap: 30,
@@ -502,7 +538,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
     },
     yAxis: {
       type: "value",
@@ -525,6 +561,7 @@ function Dashboard() {
       },
     ],
   };
+
   // 准备A008订单分析图表 - 修改为占比分析
   const a008OrdersOption = {
     tooltip: {
@@ -554,7 +591,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
     },
     yAxis: [
       {
@@ -616,7 +653,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
     },
     yAxis: {
       type: "value",
@@ -685,7 +722,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
     },
     yAxis: {
       type: "value",
@@ -745,7 +782,7 @@ function Dashboard() {
     },
     xAxis: {
       type: "category",
-      data: analysisData.dailyTrend.map((item) => item.date),
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
     },
     yAxis: {
       type: "value",
