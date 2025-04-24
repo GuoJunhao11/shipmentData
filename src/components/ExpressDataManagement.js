@@ -179,71 +179,36 @@ const ExpressDataManagement = () => {
     setFilteredData(filteredResult);
   }, [data, timeRange]);
 
-  // 计算效率（完成时间与上班时间的差值）
-  const calculateEfficiency = (record) => {
-    if (!record.完成时间 || !record.日期) return "N/A";
+  // 计算单位时间处理效率
+  const calculateUnitTimeEfficiency = (record) => {
+    if (!record.完成时间 || !record.人数 || record.人数 <= 0) return "N/A";
 
     const completionTime = moment(record.完成时间, "HH:mm");
     const startTime = moment(workStartTime, "HH:mm");
 
-    // 如果完成时间早于上班时间，显示特殊提示
-    if (completionTime.isBefore(startTime)) {
-      return "提前完成";
-    }
+    const diffHours = completionTime.diff(startTime, "minutes") / 60;
+    if (diffHours <= 0) return "N/A";
 
-    const diffMinutes = completionTime.diff(startTime, "minutes");
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-
-    return `${hours}小时${minutes}分钟`;
+    const totalOrders = (record.FedEx总数量 || 0) + (record.UPS总数量 || 0);
+    return (totalOrders / (diffHours * record.人数)).toFixed(2);
   };
 
-  // 计算平均效率
-  const calculateAverageEfficiency = () => {
+  // 计算平均单位时间处理效率
+  const calculateAverageUnitTimeEfficiency = () => {
     if (filteredData.length === 0) return "N/A";
 
-    let totalMinutes = 0;
-    let count = 0;
+    let totalEfficiency = 0;
+    let validCount = 0;
 
     filteredData.forEach((record) => {
-      if (record.完成时间) {
-        const completionTime = moment(record.完成时间, "HH:mm");
-        const startTime = moment(workStartTime, "HH:mm");
-
-        // 只计算有效的完成时间
-        if (completionTime.isValid() && completionTime.isAfter(startTime)) {
-          const diffMinutes = completionTime.diff(startTime, "minutes");
-          totalMinutes += diffMinutes;
-          count++;
-        }
+      const efficiency = calculateUnitTimeEfficiency(record);
+      if (efficiency !== "N/A" && efficiency !== "提前完成") {
+        totalEfficiency += parseFloat(efficiency);
+        validCount++;
       }
     });
 
-    if (count === 0) return "N/A";
-
-    const avgMinutes = Math.round(totalMinutes / count);
-    const hours = Math.floor(avgMinutes / 60);
-    const minutes = avgMinutes % 60;
-
-    return `${hours}小时${minutes}分钟`;
-  };
-
-  // 计算人均处理量
-  const calculateAverageHandling = () => {
-    if (filteredData.length === 0) return "N/A";
-
-    let totalPackages = 0;
-    let totalPeople = 0;
-
-    filteredData.forEach((record) => {
-      const totalCount = (record.FedEx总数量 || 0) + (record.UPS总数量 || 0);
-      totalPackages += totalCount;
-      totalPeople += record.人数 || 0;
-    });
-
-    if (totalPeople === 0) return "N/A";
-
-    return (totalPackages / totalPeople).toFixed(1);
+    return validCount > 0 ? (totalEfficiency / validCount).toFixed(2) : "N/A";
   };
 
   const handleAddClick = () => {
@@ -293,7 +258,7 @@ const ExpressDataManagement = () => {
     setTimeRange(value);
   };
 
-  // 表格列定义 - 展示所有字段
+  // 表格列定义
   const columns = [
     {
       title: "日期",
@@ -384,20 +349,25 @@ const ExpressDataManagement = () => {
       },
     },
     {
-      title: "工作效率",
-      key: "efficiency",
-      width: 120,
+      title: "单位时间处理效率",
+      key: "unitTimeEfficiency",
+      width: 150,
       render: (_, record) => (
-        <Tooltip title={`从上班时间(${workStartTime})到完成时间的耗时`}>
-          {calculateEfficiency(record)}
+        <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
+          {calculateUnitTimeEfficiency(record)} 单/人时
         </Tooltip>
       ),
       sorter: (a, b) => {
-        const timeA = a.完成时间 ? moment(a.完成时间, "HH:mm") : null;
-        const timeB = b.完成时间 ? moment(b.完成时间, "HH:mm") : null;
-        const startTime = moment(workStartTime, "HH:mm");
-        if (!timeA || !timeB) return 0;
-        return timeA.diff(startTime) - timeB.diff(startTime);
+        const effA = calculateUnitTimeEfficiency(a);
+        const effB = calculateUnitTimeEfficiency(b);
+        if (
+          effA === "N/A" ||
+          effB === "N/A" ||
+          effA === "提前完成" ||
+          effB === "提前完成"
+        )
+          return 0;
+        return parseFloat(effA) - parseFloat(effB);
       },
     },
     {
@@ -406,22 +376,6 @@ const ExpressDataManagement = () => {
       key: "人数",
       width: 80,
       sorter: (a, b) => a.人数 - b.人数,
-    },
-    {
-      title: "人均处理",
-      key: "averageHandling",
-      width: 100,
-      render: (_, record) => {
-        const totalCount = (record.FedEx总数量 || 0) + (record.UPS总数量 || 0);
-        return record.人数 ? (totalCount / record.人数).toFixed(1) : "N/A";
-      },
-      sorter: (a, b) => {
-        const totalA = (a.FedEx总数量 || 0) + (a.UPS总数量 || 0);
-        const totalB = (b.FedEx总数量 || 0) + (b.UPS总数量 || 0);
-        const avgA = a.人数 ? totalA / a.人数 : 0;
-        const avgB = b.人数 ? totalB / b.人数 : 0;
-        return avgA - avgB;
-      },
     },
     {
       title: "备注",
@@ -479,17 +433,14 @@ const ExpressDataManagement = () => {
             />
           </Col>
           <Col span={6}>
-            <Statistic
-              title="平均工作效率"
-              value={calculateAverageEfficiency()}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="平均人均处理量"
-              value={calculateAverageHandling()}
-              suffix="单/人"
-            />
+            <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
+              <Statistic
+                title="单位时间处理效率"
+                value={calculateAverageUnitTimeEfficiency()}
+                suffix="单/人时"
+                valueStyle={{ color: "#2ecc71" }}
+              />
+            </Tooltip>
           </Col>
           <Col span={6}>
             <Statistic
@@ -505,6 +456,29 @@ const ExpressDataManagement = () => {
                 );
                 return upsTotal ? (fedexTotal / upsTotal).toFixed(2) : "∞";
               })()}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="A008订单占比"
+              value={(() => {
+                const a008Total = filteredData.reduce(
+                  (sum, item) =>
+                    sum +
+                    (item.FedEx中A008订单数 || 0) +
+                    (item.UPS中A008订单数 || 0),
+                  0
+                );
+                const orderTotal = filteredData.reduce(
+                  (sum, item) =>
+                    sum + (item.FedEx总数量 || 0) + (item.UPS总数量 || 0),
+                  0
+                );
+                return orderTotal
+                  ? ((a008Total / orderTotal) * 100).toFixed(1)
+                  : "0.0";
+              })()}
+              suffix="%"
             />
           </Col>
         </Row>

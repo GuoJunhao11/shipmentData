@@ -10,6 +10,7 @@ import {
   Alert,
   Select,
   Space,
+  Tooltip,
 } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import ReactECharts from "echarts-for-react";
@@ -273,6 +274,7 @@ function Dashboard() {
       (sum, row) => sum + (row.UPS含库板数 || 0),
       0
     );
+
     // 计算平均完成时间
     let totalMinutes = 0;
     let timeEntryCount = 0;
@@ -296,41 +298,9 @@ function Dashboard() {
       .toString()
       .padStart(2, "0")}:${avgMins.toString().padStart(2, "0")}`;
 
-    // 计算平均工作效率（从9:00到完成时间）
-    let totalEfficiencyMinutes = 0;
-    let efficiencyCount = 0;
-
-    rawData.forEach((row) => {
-      if (row.完成时间) {
-        const completionTime = moment(row.完成时间, "HH:mm");
-        const startTime = moment(workStartTime, "HH:mm");
-
-        if (completionTime.isValid() && startTime.isValid()) {
-          // 只计算在工作时间后完成的情况
-          if (completionTime.isAfter(startTime)) {
-            const diffMinutes = completionTime.diff(startTime, "minutes");
-            totalEfficiencyMinutes += diffMinutes;
-            efficiencyCount++;
-          }
-        }
-      }
-    });
-
-    let avgEfficiency = "N/A";
-    if (efficiencyCount > 0) {
-      const avgEffMinutes = Math.round(
-        totalEfficiencyMinutes / efficiencyCount
-      );
-      const effHours = Math.floor(avgEffMinutes / 60);
-      const effMins = avgEffMinutes % 60;
-      avgEfficiency = `${effHours}小时${effMins}分钟`;
-    }
-
-    // 计算人均处理单量
-    const totalStaff = rawData.reduce((sum, row) => sum + (row.人数 || 0), 0);
-
-    const avgOrdersPerPerson =
-      totalStaff > 0 ? Math.round(totalOrderCount / totalStaff) : 0;
+    // 添加单位时间处理效率计算
+    let totalUnitTimeEfficiency = 0;
+    let validEntryCount = 0;
 
     // 准备每日趋势数据
     const dailyTrend = rawData.map((row) => {
@@ -341,26 +311,23 @@ function Dashboard() {
       const dailyA008Percentage =
         dailyTotal > 0 ? (dailyA008Total / dailyTotal) * 100 : 0;
 
-      // 计算工作效率（从9:00到完成时间）
-      let efficiency = null;
-      if (row.完成时间) {
+      // 计算单位时间处理效率
+      let unitTimeEfficiency = null;
+
+      if (row.完成时间 && row.人数 > 0) {
         const completionTime = moment(row.完成时间, "HH:mm");
         const startTime = moment(workStartTime, "HH:mm");
 
-        if (completionTime.isValid() && startTime.isValid()) {
-          if (completionTime.isAfter(startTime)) {
-            const diffMinutes = completionTime.diff(startTime, "minutes");
-            efficiency = diffMinutes;
-          } else {
-            efficiency = 0; // 完成时间早于上班时间
+        if (completionTime.isValid() && completionTime.isAfter(startTime)) {
+          const diffHours = completionTime.diff(startTime, "minutes") / 60; // 转换为小时
+
+          if (diffHours > 0) {
+            unitTimeEfficiency = dailyTotal / (diffHours * row.人数);
+            totalUnitTimeEfficiency += unitTimeEfficiency;
+            validEntryCount++;
           }
         }
       }
-
-      // 计算人均处理效率
-      const staffCount = row.人数 || 0;
-      const perPersonHandling =
-        staffCount > 0 ? Math.round(dailyTotal / staffCount) : 0;
 
       // 格式化日期显示
       const formattedDate = formatDisplayDate(row.日期);
@@ -381,11 +348,16 @@ function Dashboard() {
         fedexStorageCount: row.FedEx含库板数 || 0,
         upsStorageCount: row.UPS含库板数 || 0,
         completionTime: row.完成时间 || "-",
-        staffCount: staffCount,
-        perPersonHandling: perPersonHandling,
-        efficiency: efficiency,
+        staffCount: row.人数 || 0,
+        unitTimeEfficiency: unitTimeEfficiency,
       };
     });
+
+    // 计算平均单位时间处理效率
+    const avgUnitTimeEfficiency =
+      validEntryCount > 0
+        ? (totalUnitTimeEfficiency / validEntryCount).toFixed(2)
+        : "N/A";
 
     return {
       totalOrderCount,
@@ -401,8 +373,7 @@ function Dashboard() {
       fedexStorageCount,
       upsStorageCount,
       averageCompletionTime,
-      avgOrdersPerPerson,
-      avgEfficiency,
+      avgUnitTimeEfficiency,
       dailyTrend,
     };
   };
@@ -488,6 +459,66 @@ function Dashboard() {
     ],
   };
 
+  // 添加单位时间处理效率图表
+  const unitTimeEfficiencyOption = {
+    tooltip: {
+      trigger: "axis",
+      formatter: function (params) {
+        const idx = params[0].dataIndex;
+        const item = analysisData.dailyTrend[idx];
+        return `${params[0].name}<br/>
+                单位时间处理效率: ${
+                  item.unitTimeEfficiency
+                    ? item.unitTimeEfficiency.toFixed(2)
+                    : "N/A"
+                } 单/人时<br/>
+                总单量: ${item.totalOrderCount}<br/>
+                人数: ${item.staffCount}<br/>
+                完成时间: ${item.completionTime}`;
+      },
+    },
+    grid: {
+      left: "3%",
+      right: "4%",
+      bottom: "3%",
+      containLabel: true,
+    },
+    xAxis: {
+      type: "category",
+      data: analysisData.dailyTrend.map((item) => item.displayDate),
+    },
+    yAxis: {
+      type: "value",
+      name: "单位时间处理效率 (单/人时)",
+    },
+    series: [
+      {
+        name: "单位时间处理效率",
+        type: "bar",
+        data: analysisData.dailyTrend.map((item) =>
+          item.unitTimeEfficiency
+            ? parseFloat(item.unitTimeEfficiency.toFixed(2))
+            : null
+        ),
+        itemStyle: {
+          color: "#2ecc71",
+        },
+        markLine: {
+          data: [
+            {
+              name: "平均效率",
+              type: "average",
+              label: {
+                formatter: "平均: {c}单/人时",
+                position: "end",
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
   // 准备快递公司占比图表
   const courierComparisonOption = {
     tooltip: {
@@ -562,7 +593,7 @@ function Dashboard() {
     ],
   };
 
-  // 准备A008订单分析图表 - 修改为占比分析
+  // 准备A008订单分析图表
   const a008OrdersOption = {
     tooltip: {
       trigger: "axis",
@@ -683,142 +714,23 @@ function Dashboard() {
     ],
   };
 
-  // 准备工作效率分析图表 - 新增
-  const efficiencyOption = {
-    tooltip: {
-      trigger: "axis",
-      axisPointer: {
-        type: "shadow",
-      },
-      formatter: function (params) {
-        const idx = params[0].dataIndex;
-        const item = analysisData.dailyTrend[idx];
-
-        // 格式化效率展示
-        let efficiencyStr = "N/A";
-        if (item.efficiency !== null) {
-          if (item.efficiency === 0) {
-            efficiencyStr = "提前完成";
-          } else {
-            const hours = Math.floor(item.efficiency / 60);
-            const mins = item.efficiency % 60;
-            efficiencyStr = `${hours}小时${mins}分钟`;
-          }
-        }
-
-        return `${params[0].name}<br/>
-                工作效率: ${efficiencyStr}<br/>
-                完成时间: ${item.completionTime}<br/>
-                开始时间: ${workStartTime}<br/>
-                总单量: ${item.totalOrderCount}<br/>
-                人数: ${item.staffCount}`;
-      },
-    },
-    grid: {
-      left: "3%",
-      right: "4%",
-      bottom: "3%",
-      containLabel: true,
-    },
-    xAxis: {
-      type: "category",
-      data: analysisData.dailyTrend.map((item) => item.displayDate),
-    },
-    yAxis: {
-      type: "value",
-      name: "工作时长(分钟)",
-    },
-    series: [
-      {
-        name: "工作效率",
-        type: "bar",
-        data: analysisData.dailyTrend.map((item) =>
-          item.efficiency !== null
-            ? item.efficiency === 0
-              ? null
-              : item.efficiency
-            : null
-        ),
-        itemStyle: {
-          color: "#2ecc71",
-        },
-        markLine: {
-          data: [
-            {
-              name: "平均效率",
-              type: "average",
-              label: {
-                formatter: "平均: {c}分钟",
-                position: "end",
-              },
-            },
-          ],
-        },
-      },
-    ],
-  };
-
-  // 准备人效分析图表 - 修改
-  const perPersonOption = {
-    tooltip: {
-      trigger: "axis",
-      axisPointer: {
-        type: "shadow",
-      },
-      formatter: function (params) {
-        const idx = params[0].dataIndex;
-        const item = analysisData.dailyTrend[idx];
-        return `${params[0].name}<br/>
-                人均处理: ${item.perPersonHandling} 单/人<br/>
-                总单量: ${item.totalOrderCount}<br/>
-                人数: ${item.staffCount}`;
-      },
-    },
-    grid: {
-      left: "3%",
-      right: "4%",
-      bottom: "3%",
-      containLabel: true,
-    },
-    xAxis: {
-      type: "category",
-      data: analysisData.dailyTrend.map((item) => item.displayDate),
-    },
-    yAxis: {
-      type: "value",
-      name: "人均处理单量",
-    },
-    series: [
-      {
-        name: "人均处理单量",
-        type: "bar",
-        data: analysisData.dailyTrend.map((item) => item.perPersonHandling),
-        itemStyle: {
-          color: "#3498db",
-        },
-        markLine: {
-          data: [
-            {
-              name: "平均人效",
-              type: "average",
-              label: {
-                formatter: "平均: {c}单/人",
-                position: "end",
-              },
-            },
-          ],
-        },
-      },
-    ],
-  };
-
-  // Tabs项目 - 增加了效率分析
+  // Tabs项目
   const items = [
     {
       key: "daily",
       label: "每日趋势",
       children: (
         <ReactECharts option={dailyTrendOption} style={{ height: 400 }} />
+      ),
+    },
+    {
+      key: "unitTimeEfficiency",
+      label: "单位时间处理效率",
+      children: (
+        <ReactECharts
+          option={unitTimeEfficiencyOption}
+          style={{ height: 400 }}
+        />
       ),
     },
     {
@@ -849,20 +761,6 @@ function Dashboard() {
       key: "storage",
       label: "库板与电池分析",
       children: <ReactECharts option={storageOption} style={{ height: 400 }} />,
-    },
-    {
-      key: "efficiency",
-      label: "工作效率分析",
-      children: (
-        <ReactECharts option={efficiencyOption} style={{ height: 400 }} />
-      ),
-    },
-    {
-      key: "perPerson",
-      label: "人效分析",
-      children: (
-        <ReactECharts option={perPersonOption} style={{ height: 400 }} />
-      ),
     },
   ];
 
@@ -929,12 +827,14 @@ function Dashboard() {
           </Col>
           <Col xs={12} sm={8} md={6} lg={6}>
             <Card>
-              <Statistic
-                title="平均人效"
-                value={analysisData.avgOrdersPerPerson}
-                suffix="单/人"
-                valueStyle={{ color: "#3498db" }}
-              />
+              <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
+                <Statistic
+                  title="单位时间处理效率"
+                  value={analysisData.avgUnitTimeEfficiency}
+                  suffix="单/人时"
+                  valueStyle={{ color: "#2ecc71" }}
+                />
+              </Tooltip>
             </Card>
           </Col>
         </Row>
@@ -973,15 +873,15 @@ function Dashboard() {
           <Col xs={12} sm={8} md={6} lg={6}>
             <Card>
               <Statistic
-                title="平均工作效率"
-                value={analysisData.avgEfficiency}
-                valueStyle={{ color: "#2ecc71" }}
+                title="平均完成时间"
+                value={analysisData.averageCompletionTime}
+                valueStyle={{ color: "#3f8600" }}
               />
             </Card>
           </Col>
         </Row>
 
-        {/* 第三行统计 - 增加更多详细信息 */}
+        {/* 第三行统计 */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={12} sm={8} md={6} lg={6}>
             <Card>
@@ -1013,9 +913,14 @@ function Dashboard() {
           <Col xs={12} sm={8} md={6} lg={6}>
             <Card>
               <Statistic
-                title="平均完成时间"
-                value={analysisData.averageCompletionTime}
-                valueStyle={{ color: "#3f8600" }}
+                title="FedEx/UPS比例"
+                value={(() => {
+                  if (analysisData.upsCount === 0) return "∞";
+                  return (
+                    analysisData.fedexCount / analysisData.upsCount
+                  ).toFixed(2);
+                })()}
+                valueStyle={{ color: "#1890ff" }}
               />
             </Card>
           </Col>
