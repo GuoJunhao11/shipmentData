@@ -720,7 +720,11 @@ function Dashboard() {
       key: "daily",
       label: "每日趋势",
       children: (
-        <ReactECharts option={dailyTrendOption} style={{ height: 400 }} />
+        <ReactECharts
+          option={dailyTrendOption}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
+        />
       ),
     },
     {
@@ -729,7 +733,8 @@ function Dashboard() {
       children: (
         <ReactECharts
           option={unitTimeEfficiencyOption}
-          style={{ height: 400 }}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
         />
       ),
     },
@@ -737,7 +742,11 @@ function Dashboard() {
       key: "system",
       label: "系统对比",
       children: (
-        <ReactECharts option={systemComparisonOption} style={{ height: 400 }} />
+        <ReactECharts
+          option={systemComparisonOption}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
+        />
       ),
     },
     {
@@ -746,7 +755,8 @@ function Dashboard() {
       children: (
         <ReactECharts
           option={courierComparisonOption}
-          style={{ height: 400 }}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
         />
       ),
     },
@@ -754,13 +764,23 @@ function Dashboard() {
       key: "a008",
       label: "A008订单分析",
       children: (
-        <ReactECharts option={a008OrdersOption} style={{ height: 400 }} />
+        <ReactECharts
+          option={a008OrdersOption}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
+        />
       ),
     },
     {
       key: "storage",
       label: "库板与电池分析",
-      children: <ReactECharts option={storageOption} style={{ height: 400 }} />,
+      children: (
+        <ReactECharts
+          option={storageOption}
+          style={{ height: "100%", width: "100%" }}
+          className="chart-container"
+        />
+      ),
     },
   ];
 
@@ -775,6 +795,7 @@ function Dashboard() {
           justifyContent: "flex-end",
           marginBottom: "16px",
         }}
+        className="management-actions"
       >
         <Space>
           <span>
@@ -797,9 +818,9 @@ function Dashboard() {
 
       <Card title="仪表盘" className="card">
         {/* 顶部统计 */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+        <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="总单量"
                 value={analysisData.totalOrderCount}
@@ -807,8 +828,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="易仓系统总量"
                 value={analysisData.ecSystemTotal}
@@ -816,8 +837,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="新系统总量"
                 value={analysisData.newSystemTotal}
@@ -825,8 +846,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
                 <Statistic
                   title="单位时间处理效率"
@@ -840,9 +861,9 @@ function Dashboard() {
         </Row>
 
         {/* 第二行统计 */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+        <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="FedEx 总量"
                 value={analysisData.fedexCount}
@@ -850,8 +871,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="UPS 总量"
                 value={analysisData.upsCount}
@@ -859,8 +880,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="A008占比"
                 value={analysisData.a008Percentage}
@@ -870,8 +891,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="平均完成时间"
                 value={analysisData.averageCompletionTime}
@@ -882,9 +903,9 @@ function Dashboard() {
         </Row>
 
         {/* 第三行统计 */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+        <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="电池板数"
                 value={analysisData.batteryCount}
@@ -892,8 +913,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="FedEx库板数"
                 value={analysisData.fedexStorageCount}
@@ -901,8 +922,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="UPS库板数"
                 value={analysisData.upsStorageCount}
@@ -910,8 +931,8 @@ function Dashboard() {
               />
             </Card>
           </Col>
-          <Col xs={12} sm={8} md={6} lg={6}>
-            <Card>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
                 title="FedEx/UPS比例"
                 value={(() => {
@@ -927,7 +948,9 @@ function Dashboard() {
         </Row>
 
         {/* 图表分析 */}
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+        <div className="chart-container">
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+        </div>
       </Card>
     </div>
   );

@@ -52,6 +52,8 @@
   font-weight: bold;
   color: white;
   margin: 16px;
+  word-break: break-word;
+  text-align: center;
 }
 
 /* Header样式 */
@@ -63,11 +65,14 @@
   background: #fff;
   position: relative;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  flex-wrap: wrap; /* 允许在小屏幕上换行 */
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .trigger {
@@ -90,13 +95,67 @@
   overflow: auto;
 }
 
+/* 表格响应式设计 */
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* 统计卡片样式 */
+.stat-card .ant-card-body {
+  padding: 12px;
+}
+
+.stat-card .ant-statistic-title {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.stat-card .ant-statistic-content {
+  font-size: 20px;
+}
+
+/* 图表容器样式 */
+.chart-container {
+  width: 100%;
+  min-height: 300px;
+  height: 50vh;
+  max-height: 500px;
+}
+
 /* 响应式设计 */
+@media (max-width: 1200px) {
+  .site-content {
+    padding: 20px;
+  }
+  
+  .ant-row {
+    margin-left: -8px !important;
+    margin-right: -8px !important;
+  }
+  
+  .ant-col {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
 @media (max-width: 992px) {
   .ant-statistic-title {
     font-size: 12px;
   }
+  
   .ant-statistic-content {
-    font-size: 20px;
+    font-size: 18px;
+  }
+  
+  .site-content {
+    padding: 16px;
+    margin: 16px 8px;
+  }
+  
+  .chart-container {
+    height: 40vh;
   }
 }
 
@@ -113,6 +172,24 @@
   .ant-col {
     margin-bottom: 16px;
   }
+  
+  .ant-row {
+    margin-bottom: 0 !important;
+  }
+  
+  .chart-container {
+    height: 35vh;
+    min-height: 250px;
+  }
+  
+  /* 在768px以下屏幕，统计卡片2列显示 */
+  .stats-row .ant-col-xs-12 {
+    width: 50%;
+  }
+  
+  .stats-row .ant-col-xs-24 {
+    width: 100%;
+  }
 }
 
 @media (max-width: 576px) {
@@ -121,10 +198,57 @@
   }
   
   .logo {
-    font-size: 16px;
+    font-size: 14px;
+    margin: 8px;
   }
   
   .ant-tabs-tab {
     padding: 8px 12px;
+  }
+  
+  .site-content {
+    padding: 12px;
+    margin: 12px 6px;
+  }
+  
+  .ant-card-body {
+    padding: 12px;
+  }
+  
+  .ant-statistic-title {
+    font-size: 10px;
+  }
+  
+  .ant-statistic-content {
+    font-size: 16px;
+  }
+  
+  .chart-container {
+    height: 30vh;
+    min-height: 200px;
+  }
+  
+  /* 在576px以下屏幕，统计卡片全部变为1列显示 */
+  .stats-row .ant-col {
+    width: 100%;
+  }
+  
+  /* 表格内容缩小 */
+  .ant-table {
+    font-size: 12px;
+  }
+  
+  .ant-table-cell {
+    padding: 8px 4px !important;
+  }
+  
+  /* 管理操作按钮缩小 */
+  .management-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .management-actions > * {
+    margin-bottom: 8px;
   }
 }

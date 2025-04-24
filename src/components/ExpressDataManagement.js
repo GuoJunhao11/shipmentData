@@ -89,6 +89,26 @@ const parseDateForSort = (dateStr) => {
   }
 };
 
+// 根据屏幕尺寸隐藏某些列
+const getColumnClassName = (columnKey) => {
+  switch (columnKey) {
+    // 在小屏幕上隐藏这些次要列
+    case "FedEx中A008订单数":
+    case "UPS中A008订单数":
+    case "FedEx含库板数":
+    case "UPS含库板数":
+    case "备注":
+      return "hide-xs";
+    // 在更小的屏幕上隐藏这些列
+    case "易仓系统总量":
+    case "新系统总量":
+    case "电池板数":
+      return "hide-sm";
+    default:
+      return "";
+  }
+};
+
 const ExpressDataManagement = () => {
   const {
     data,
@@ -186,6 +206,11 @@ const ExpressDataManagement = () => {
     const completionTime = moment(record.完成时间, "HH:mm");
     const startTime = moment(workStartTime, "HH:mm");
 
+    // 如果完成时间早于上班时间，显示特殊提示
+    if (completionTime.isBefore(startTime)) {
+      return "提前完成";
+    }
+
     const diffHours = completionTime.diff(startTime, "minutes") / 60;
     if (diffHours <= 0) return "N/A";
 
@@ -278,6 +303,7 @@ const ExpressDataManagement = () => {
       dataIndex: "易仓系统总量",
       key: "易仓系统总量",
       width: 120,
+      className: getColumnClassName("易仓系统总量"),
       sorter: (a, b) => a.易仓系统总量 - b.易仓系统总量,
     },
     {
@@ -285,6 +311,7 @@ const ExpressDataManagement = () => {
       dataIndex: "新系统总量",
       key: "新系统总量",
       width: 120,
+      className: getColumnClassName("新系统总量"),
       sorter: (a, b) => a.新系统总量 - b.新系统总量,
     },
     {
@@ -306,6 +333,7 @@ const ExpressDataManagement = () => {
       dataIndex: "FedEx中A008订单数",
       key: "FedEx中A008订单数",
       width: 150,
+      className: getColumnClassName("FedEx中A008订单数"),
       sorter: (a, b) => a.FedEx中A008订单数 - b.FedEx中A008订单数,
     },
     {
@@ -313,6 +341,7 @@ const ExpressDataManagement = () => {
       dataIndex: "UPS中A008订单数",
       key: "UPS中A008订单数",
       width: 150,
+      className: getColumnClassName("UPS中A008订单数"),
       sorter: (a, b) => a.UPS中A008订单数 - b.UPS中A008订单数,
     },
     {
@@ -320,6 +349,7 @@ const ExpressDataManagement = () => {
       dataIndex: "电池板数",
       key: "电池板数",
       width: 100,
+      className: getColumnClassName("电池板数"),
       sorter: (a, b) => a.电池板数 - b.电池板数,
     },
     {
@@ -327,6 +357,7 @@ const ExpressDataManagement = () => {
       dataIndex: "FedEx含库板数",
       key: "FedEx含库板数",
       width: 130,
+      className: getColumnClassName("FedEx含库板数"),
       sorter: (a, b) => a.FedEx含库板数 - b.FedEx含库板数,
     },
     {
@@ -334,6 +365,7 @@ const ExpressDataManagement = () => {
       dataIndex: "UPS含库板数",
       key: "UPS含库板数",
       width: 130,
+      className: getColumnClassName("UPS含库板数"),
       sorter: (a, b) => a.UPS含库板数 - b.UPS含库板数,
     },
     {
@@ -382,6 +414,7 @@ const ExpressDataManagement = () => {
       dataIndex: "备注",
       key: "备注",
       width: 150,
+      className: getColumnClassName("备注"),
     },
     {
       title: "操作",
@@ -424,62 +457,70 @@ const ExpressDataManagement = () => {
 
       {/* 统计卡片 */}
       <Card title="数据统计" style={{ marginBottom: 20 }}>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic
-              title="数据总条数"
-              value={filteredData.length}
-              suffix={`/${data.length}`}
-            />
-          </Col>
-          <Col span={6}>
-            <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
+        <Row gutter={16} className="stats-row">
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
               <Statistic
-                title="单位时间处理效率"
-                value={calculateAverageUnitTimeEfficiency()}
-                suffix="单/人时"
-                valueStyle={{ color: "#2ecc71" }}
+                title="数据总条数"
+                value={filteredData.length}
+                suffix={`/${data.length}`}
               />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Tooltip title="每人每小时处理的单量，数值越高表示效率越高">
+              <Card className="stat-card">
+                <Statistic
+                  title="单位时间处理效率"
+                  value={calculateAverageUnitTimeEfficiency()}
+                  suffix="单/人时"
+                  valueStyle={{ color: "#2ecc71" }}
+                />
+              </Card>
             </Tooltip>
           </Col>
-          <Col span={6}>
-            <Statistic
-              title="FedEx/UPS比例"
-              value={(() => {
-                const fedexTotal = filteredData.reduce(
-                  (sum, item) => sum + (item.FedEx总数量 || 0),
-                  0
-                );
-                const upsTotal = filteredData.reduce(
-                  (sum, item) => sum + (item.UPS总数量 || 0),
-                  0
-                );
-                return upsTotal ? (fedexTotal / upsTotal).toFixed(2) : "∞";
-              })()}
-            />
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
+              <Statistic
+                title="FedEx/UPS比例"
+                value={(() => {
+                  const fedexTotal = filteredData.reduce(
+                    (sum, item) => sum + (item.FedEx总数量 || 0),
+                    0
+                  );
+                  const upsTotal = filteredData.reduce(
+                    (sum, item) => sum + (item.UPS总数量 || 0),
+                    0
+                  );
+                  return upsTotal ? (fedexTotal / upsTotal).toFixed(2) : "∞";
+                })()}
+              />
+            </Card>
           </Col>
-          <Col span={6}>
-            <Statistic
-              title="A008订单占比"
-              value={(() => {
-                const a008Total = filteredData.reduce(
-                  (sum, item) =>
-                    sum +
-                    (item.FedEx中A008订单数 || 0) +
-                    (item.UPS中A008订单数 || 0),
-                  0
-                );
-                const orderTotal = filteredData.reduce(
-                  (sum, item) =>
-                    sum + (item.FedEx总数量 || 0) + (item.UPS总数量 || 0),
-                  0
-                );
-                return orderTotal
-                  ? ((a008Total / orderTotal) * 100).toFixed(1)
-                  : "0.0";
-              })()}
-              suffix="%"
-            />
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card className="stat-card">
+              <Statistic
+                title="A008订单占比"
+                value={(() => {
+                  const a008Total = filteredData.reduce(
+                    (sum, item) =>
+                      sum +
+                      (item.FedEx中A008订单数 || 0) +
+                      (item.UPS中A008订单数 || 0),
+                    0
+                  );
+                  const orderTotal = filteredData.reduce(
+                    (sum, item) =>
+                      sum + (item.FedEx总数量 || 0) + (item.UPS总数量 || 0),
+                    0
+                  );
+                  return orderTotal
+                    ? ((a008Total / orderTotal) * 100).toFixed(1)
+                    : "0.0";
+                })()}
+                suffix="%"
+              />
+            </Card>
           </Col>
         </Row>
       </Card>
@@ -491,6 +532,7 @@ const ExpressDataManagement = () => {
             display: "flex",
             justifyContent: "space-between",
           }}
+          className="management-actions"
         >
           <Space>
             <Button
@@ -523,14 +565,19 @@ const ExpressDataManagement = () => {
           </Space>
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={filteredData.map((item) => ({ ...item, key: item._id }))}
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-          scroll={{ x: 1800 }}
-          bordered
-        />
+        <div className="responsive-table">
+          <Table
+            columns={columns}
+            dataSource={filteredData.map((item) => ({
+              ...item,
+              key: item._id,
+            }))}
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 1800 }}
+            bordered
+          />
+        </div>
       </Card>
 
       <ExpressDataForm

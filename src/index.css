@@ -145,3 +145,60 @@ body {
     padding: 8px 12px;
   }
 }
+
+/* 通用响应式辅助类 */
+.text-center {
+  text-align: center;
+}
+
+.overflow-auto {
+  overflow: auto;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+/* 隐藏某些屏幕尺寸下的元素 */
+@media (max-width: 576px) {
+  .hide-xs {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hide-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .hide-md {
+    display: none !important;
+  }
+}
+
+/* 表格列在小屏幕上的调整 */
+@media (max-width: 768px) {
+  .ant-table-column-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
