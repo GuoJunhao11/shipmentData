@@ -15,12 +15,14 @@ import {
   DatabaseOutlined,
   LockOutlined,
   UnlockOutlined,
+  ExceptionOutlined,
 } from "@ant-design/icons";
 import { AuthProvider, AuthContext } from "./contexts/AuthContext";
 import Login from "./components/auth/Login";
 import AdminRoute from "./components/auth/AdminRoute";
 import Dashboard from "./components/dashboard/Dashboard";
 import ExpressDataManagement from "./components/ExpressDataManagement";
+import ExceptionRecordManagement from "./components/ExceptionRecordManagement";
 import UnauthorizedPage from "./components/UnauthorizedPage";
 import "./App.css";
 
@@ -63,6 +65,9 @@ function MainLayout() {
           <Menu.Item key="2" icon={<DatabaseOutlined />}>
             <Link to="/data">数据管理</Link>
           </Menu.Item>
+          <Menu.Item key="3" icon={<ExceptionOutlined />}>
+            <Link to="/exceptions">异常记录</Link>
+          </Menu.Item>
         </Menu>
       </Sider>
       <Layout className="site-layout">
@@ -97,6 +102,16 @@ function MainLayout() {
                   <Navigate to="/unauthorized" replace />
                 )
               }
+            />
+            <Route 
+              path="/exceptions" 
+              element={
+                isAdmin ? (
+                  <ExceptionRecordManagement />
+                ) : (
+                  <Navigate to="/unauthorized" replace />
+                )
+              } 
             />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
           </Routes>

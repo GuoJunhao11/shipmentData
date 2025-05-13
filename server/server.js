@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path"); // Add this line
+const path = require("path");
 const connectDB = require("./config/db");
 require("dotenv").config();
 
@@ -15,6 +15,8 @@ app.use(express.json());
 
 // API 路由
 app.use("/api/express", require("./routes/expressRoutes"));
+// 添加新的异常记录路由
+app.use("/api/exception", require("./routes/exceptionRoutes"));
 
 // 服务器状态检查
 app.get("/api/status", (req, res) => {

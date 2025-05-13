@@ -1,4 +1,4 @@
-// src/components/dashboard/Dashboard.js - 改进版本
+// src/components/dashboard/Dashboard.js
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -15,6 +15,7 @@ import {
 import { FilterOutlined } from "@ant-design/icons";
 import ReactECharts from "echarts-for-react";
 import { useExpressData } from "../../hooks/useExpressData";
+import { useExceptionData } from "../../hooks/useExceptionData";
 import ServerStatus from "../ServerStatus";
 import moment from "moment";
 
@@ -87,6 +88,11 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("daily");
   const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
   const { data, loading, error, serverStatus, checkStatus } = useExpressData();
+  const {
+    stats: exceptionStats,
+    statsLoading: exceptionStatsLoading,
+    fetchStats: fetchExceptionStats,
+  } = useExceptionData();
   const [filteredData, setFilteredData] = useState([]);
 
   // 设置工作起始时间为09:00
@@ -714,6 +720,64 @@ function Dashboard() {
     ],
   };
 
+  // 异常统计卡片行
+  const exceptionStatsRow = (
+    <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="异常记录总数"
+            value={exceptionStats.totalExceptions}
+            valueStyle={{ color: "#ff4d4f" }}
+            loading={exceptionStatsLoading}
+          />
+          <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+            异常率: {exceptionStats.exceptionRate}%
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="无轨迹"
+            value={exceptionStats.noTracking?.count || 0}
+            valueStyle={{ color: "#faad14" }}
+            loading={exceptionStatsLoading}
+          />
+          <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+            占异常总数: {exceptionStats.noTracking?.percentage || "0.0"}%
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="缺货"
+            value={exceptionStats.outOfStock?.count || 0}
+            valueStyle={{ color: "#f5222d" }}
+            loading={exceptionStatsLoading}
+          />
+          <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+            占异常总数: {exceptionStats.outOfStock?.percentage || "0.0"}%
+          </div>
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="错发"
+            value={exceptionStats.wrongShipment?.count || 0}
+            valueStyle={{ color: "#1890ff" }}
+            loading={exceptionStatsLoading}
+          />
+          <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
+            占异常总数: {exceptionStats.wrongShipment?.percentage || "0.0"}%
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+
   // Tabs项目
   const items = [
     {
@@ -946,6 +1010,9 @@ function Dashboard() {
             </Card>
           </Col>
         </Row>
+
+        {/* 异常统计行 */}
+        {exceptionStatsRow}
 
         {/* 图表分析 */}
         <div className="chart-container">
