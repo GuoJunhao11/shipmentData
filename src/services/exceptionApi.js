@@ -67,11 +67,43 @@ export const getExceptionStats = async () => {
   } catch (error) {
     console.error("获取异常统计数据失败:", error);
     return {
-      totalExceptions: 0,
-      exceptionRate: "0.0",
-      noTracking: { count: 0, percentage: "0.0" },
-      outOfStock: { count: 0, percentage: "0.0" },
-      wrongShipment: { count: 0, percentage: "0.0" }
+      currentMonth: {
+        totalExceptions: 0,
+        exceptionRate: "0.0",
+        noTracking: 0,
+        outOfStock: 0,
+        wrongShipment: 0,
+      },
+      lastMonth: {
+        totalExceptions: 0,
+        exceptionRate: "0.0",
+        noTracking: 0,
+        outOfStock: 0,
+        wrongShipment: 0,
+      },
+      changeRate: {
+        total: "0.0",
+        noTracking: "0.0",
+        outOfStock: "0.0",
+        wrongShipment: "0.0",
+      },
+      monthlyAverage: "0.0"
+    };
+  }
+};
+
+// 获取异常分析数据
+export const getExceptionAnalysis = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/stats/analysis`);
+    return response.data;
+  } catch (error) {
+    console.error("获取异常分析数据失败:", error);
+    return {
+      topSKUs: [],
+      courierStats: { fedex: 0, ups: 0, unknown: 0 },
+      typeStats: { 无轨迹: 0, 缺货: 0, 错发: 0 },
+      dailyStats: {}
     };
   }
 };

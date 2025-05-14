@@ -12,7 +12,11 @@ import {
   Space,
   Tooltip,
 } from "antd";
-import { FilterOutlined } from "@ant-design/icons";
+import { 
+  FilterOutlined, 
+  ArrowUpOutlined, 
+  ArrowDownOutlined 
+} from "@ant-design/icons";
 import ReactECharts from "echarts-for-react";
 import { useExpressData } from "../../hooks/useExpressData";
 import { useExceptionData } from "../../hooks/useExceptionData";
@@ -176,6 +180,7 @@ function Dashboard() {
       <Alert message="数据加载失败" description={error} type="error" showIcon />
     );
   }
+  
   // 确保数据可用
   if (!filteredData || filteredData.length === 0) {
     return (
@@ -726,52 +731,64 @@ function Dashboard() {
       <Col xs={24} sm={12} md={6} lg={6}>
         <Card className="stat-card">
           <Statistic
-            title="异常记录总数"
-            value={exceptionStats.totalExceptions}
-            valueStyle={{ color: "#ff4d4f" }}
+            title="当月异常记录总数"
+            value={exceptionStats.currentMonth?.totalExceptions || 0}
+            valueStyle={{ 
+              color: parseFloat(exceptionStats.changeRate?.total) < 0 ? "#3f8600" : "#cf1322" 
+            }}
+            prefix={parseFloat(exceptionStats.changeRate?.total) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            suffix={`${exceptionStats.changeRate?.total || 0}%`}
             loading={exceptionStatsLoading}
           />
           <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
-            异常率: {exceptionStats.exceptionRate}%
+            上月: {exceptionStats.lastMonth?.totalExceptions || 0}
           </div>
         </Card>
       </Col>
       <Col xs={24} sm={12} md={6} lg={6}>
         <Card className="stat-card">
           <Statistic
-            title="无轨迹"
-            value={exceptionStats.noTracking?.count || 0}
-            valueStyle={{ color: "#faad14" }}
+            title="当月无轨迹"
+            value={exceptionStats.currentMonth?.noTracking || 0}
+            valueStyle={{ 
+              color: parseFloat(exceptionStats.changeRate?.noTracking) < 0 ? "#3f8600" : "#cf1322" 
+            }}
+            prefix={parseFloat(exceptionStats.changeRate?.noTracking) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            suffix={`${exceptionStats.changeRate?.noTracking || 0}%`}
             loading={exceptionStatsLoading}
           />
           <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
-            占异常总数: {exceptionStats.noTracking?.percentage || "0.0"}%
+            上月: {exceptionStats.lastMonth?.noTracking || 0}
           </div>
         </Card>
       </Col>
       <Col xs={24} sm={12} md={6} lg={6}>
         <Card className="stat-card">
           <Statistic
-            title="缺货"
-            value={exceptionStats.outOfStock?.count || 0}
-            valueStyle={{ color: "#f5222d" }}
+            title="当月缺货"
+            value={exceptionStats.currentMonth?.outOfStock || 0}
+            valueStyle={{ 
+              color: parseFloat(exceptionStats.changeRate?.outOfStock) < 0 ? "#3f8600" : "#cf1322" 
+            }}
+            prefix={parseFloat(exceptionStats.changeRate?.outOfStock) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            suffix={`${exceptionStats.changeRate?.outOfStock || 0}%`}
             loading={exceptionStatsLoading}
           />
           <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
-            占异常总数: {exceptionStats.outOfStock?.percentage || "0.0"}%
+            上月: {exceptionStats.lastMonth?.outOfStock || 0}
           </div>
         </Card>
       </Col>
       <Col xs={24} sm={12} md={6} lg={6}>
         <Card className="stat-card">
           <Statistic
-            title="错发"
-            value={exceptionStats.wrongShipment?.count || 0}
+            title="平均每月异常数"
+            value={exceptionStats.monthlyAverage || 0}
             valueStyle={{ color: "#1890ff" }}
             loading={exceptionStatsLoading}
           />
           <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
-            占异常总数: {exceptionStats.wrongShipment?.percentage || "0.0"}%
+            当月错发: {exceptionStats.currentMonth?.wrongShipment || 0}
           </div>
         </Card>
       </Col>

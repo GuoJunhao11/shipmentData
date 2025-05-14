@@ -6,14 +6,11 @@ import {
   Space,
   Popconfirm,
   message,
-  Card,
-  Row,
-  Col,
-  Select,
-  Tag,
-  Typography,
-  Divider,
   Input,
+  Select,
+  Typography,
+  Tag,
+  Divider,
 } from "antd";
 import {
   PlusOutlined,
@@ -66,7 +63,7 @@ const formatDisplayDate = (dateStr) => {
   }
 };
 
-// 解析日期用于排序
+// 解析日期用于排序和按月分组
 const parseDateForSort = (dateStr) => {
   if (!dateStr) return new Date(0);
 
@@ -108,6 +105,32 @@ const getExceptionTypeTag = (type) => {
   }
 };
 
+// 快递公司判断
+const getCourierCompany = (trackingNumber) => {
+  if (!trackingNumber) return "未知";
+  
+  if (trackingNumber.startsWith('1Z') || /^[A-Z0-9]{18}$/.test(trackingNumber)) {
+    return "UPS";
+  } else if (/^\d{12}$/.test(trackingNumber) || /^\d{15}$/.test(trackingNumber)) {
+    return "FedEx";
+  } else {
+    return "未知";
+  }
+};
+
+// 获取快递公司标签
+const getCourierCompanyTag = (trackingNumber) => {
+  const company = getCourierCompany(trackingNumber);
+  switch (company) {
+    case "FedEx":
+      return <Tag color="purple">{company}</Tag>;
+    case "UPS":
+      return <Tag color="blue">{company}</Tag>;
+    default:
+      return <Tag>{company}</Tag>;
+  }
+};
+
 const ExceptionRecordManagement = () => {
   const {
     data,
@@ -124,11 +147,11 @@ const ExceptionRecordManagement = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [currentData, setCurrentData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
   const [typeFilter, setTypeFilter] = useState("all"); // 默认显示所有类型
+  const [courierFilter, setCourierFilter] = useState("all"); // 默认显示所有快递公司
   const [searchText, setSearchText] = useState(""); // 搜索文本
   const [filteredData, setFilteredData] = useState([]);
-  const [groupedData, setGroupedData] = useState({}); // 按日期分组的数据
+  const [groupedByMonth, setGroupedByMonth] = useState({}); // 按月份分组的数据
 
   useEffect(() => {
     if (error) {
@@ -136,49 +159,27 @@ const ExceptionRecordManagement = () => {
     }
   }, [error]);
 
-  // 根据时间范围、类型和搜索文本筛选数据
+  // 根据类型和搜索文本筛选数据
   useEffect(() => {
     if (!data || data.length === 0) {
       setFilteredData([]);
-      setGroupedData({});
+      setGroupedByMonth({});
       return;
     }
 
-    const currentDate = moment();
     let filteredResult = [...data];
-
-    // 时间范围筛选
-    switch (timeRange) {
-      case "week":
-        // 过去一周的数据
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 7;
-        });
-        break;
-      case "month":
-        // 过去一个月的数据
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 30;
-        });
-        break;
-      case "quarter":
-        // 过去三个月的数据
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 90;
-        });
-        break;
-      default:
-        // 全部数据
-        filteredResult = [...data];
-    }
 
     // 类型筛选
     if (typeFilter !== "all") {
       filteredResult = filteredResult.filter(
         (item) => item.异常类型 === typeFilter
+      );
+    }
+
+    // 快递公司筛选
+    if (courierFilter !== "all") {
+      filteredResult = filteredResult.filter(
+        (item) => getCourierCompany(item.跟踪号码) === courierFilter
       );
     }
 
@@ -196,40 +197,48 @@ const ExceptionRecordManagement = () => {
       );
     }
 
-    // 按日期排序（新的在前）
-    filteredResult.sort((a, b) => {
-      const dateA = parseDateForSort(a.日期);
-      const dateB = parseDateForSort(b.日期);
-      if (!dateA || !dateB) return 0;
-      return dateB - dateA;
-    });
-
     setFilteredData(filteredResult);
 
-    // 按日期分组
+    // 按月份分组
     const grouped = {};
     filteredResult.forEach((item) => {
-      const date = item.日期;
-      if (!grouped[date]) {
-        grouped[date] = [];
+      const date = parseDateForSort(item.日期);
+      if (date) {
+        const monthYear = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+        if (!grouped[monthYear]) {
+          grouped[monthYear] = [];
+        }
+        grouped[monthYear].push(item);
       }
-      grouped[date].push(item);
     });
     
-    // 按日期排序（新的在前）
-    const sortedGroupedData = Object.keys(grouped)
-      .sort((a, b) => {
-        const dateA = parseDateForSort(a);
-        const dateB = parseDateForSort(b);
+    // 对每个月内的记录按日期降序排序
+    Object.keys(grouped).forEach(monthYear => {
+      grouped[monthYear].sort((a, b) => {
+        const dateA = parseDateForSort(a.日期);
+        const dateB = parseDateForSort(b.日期);
         return dateB - dateA;
-      })
-      .reduce((acc, key) => {
-        acc[key] = grouped[key];
-        return acc;
-      }, {});
-
-    setGroupedData(sortedGroupedData);
-  }, [data, timeRange, typeFilter, searchText]);
+      });
+    });
+    
+    // 按月份降序排序
+    const sortedMonths = Object.keys(grouped).sort((a, b) => {
+      const [yearA, monthA] = a.replace(/[^0-9]/g, ' ').trim().split(' ');
+      const [yearB, monthB] = b.replace(/[^0-9]/g, ' ').trim().split(' ');
+      
+      if (yearA !== yearB) {
+        return parseInt(yearB) - parseInt(yearA);
+      }
+      return parseInt(monthB) - parseInt(monthA);
+    });
+    
+    const sortedGrouped = {};
+    sortedMonths.forEach(month => {
+      sortedGrouped[month] = grouped[month];
+    });
+    
+    setGroupedByMonth(sortedGrouped);
+  }, [data, typeFilter, courierFilter, searchText]);
 
   const handleAddClick = () => {
     setCurrentData(null);
@@ -274,12 +283,12 @@ const ExceptionRecordManagement = () => {
     fetchData();
   };
 
-  const handleTimeRangeChange = (value) => {
-    setTimeRange(value);
-  };
-
   const handleTypeFilterChange = (value) => {
     setTypeFilter(value);
+  };
+
+  const handleCourierFilterChange = (value) => {
+    setCourierFilter(value);
   };
 
   // 表格列定义
@@ -289,13 +298,20 @@ const ExceptionRecordManagement = () => {
       dataIndex: "异常类型",
       key: "异常类型",
       render: (text) => getExceptionTypeTag(text),
-      filters: [
-        { text: "无轨迹", value: "无轨迹" },
-        { text: "缺货", value: "缺货" },
-        { text: "错发", value: "错发" },
-      ],
-      onFilter: (value, record) => record.异常类型.indexOf(value) === 0,
-      width: 100,
+      width: 90,
+    },
+    {
+      title: "快递公司",
+      key: "快递公司",
+      render: (_, record) => getCourierCompanyTag(record.跟踪号码),
+      width: 80,
+    },
+    {
+      title: "日期",
+      dataIndex: "日期",
+      key: "日期",
+      render: (text) => formatDisplayDate(text),
+      width: 90,
     },
     {
       title: "客户代码",
@@ -324,7 +340,6 @@ const ExceptionRecordManagement = () => {
     {
       title: "操作",
       key: "action",
-      fixed: "right",
       width: 120,
       render: (_, record) => (
         <Space size="small">
@@ -360,79 +375,106 @@ const ExceptionRecordManagement = () => {
     <div style={{ padding: "20px" }}>
       <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
 
-      <Card title="异常记录管理" style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            marginBottom: 16,
-            display: "flex",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-          }}
-          className="management-actions"
+      {/* 管理标题和添加按钮 */}
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        marginBottom: "16px",
+        paddingBottom: "8px",
+        borderBottom: "1px solid #f0f0f0"
+      }}>
+        <Title level={4} style={{ margin: 0 }}>异常记录管理</Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAddClick}
         >
-          <Space wrap>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddClick}
-            >
-              添加异常记录
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-              刷新数据
-            </Button>
-          </Space>
-          <Space wrap>
-            <Input
-              placeholder="搜索客户代码/跟踪号/SKU"
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 200 }}
-              allowClear
-            />
-            <span>
-              <FilterOutlined /> 异常类型:{" "}
-            </span>
-            <Select
-              value={typeFilter}
-              onChange={handleTypeFilterChange}
-              style={{ width: 120 }}
-            >
-              <Option value="all">全部</Option>
-              <Option value="无轨迹">无轨迹</Option>
-              <Option value="缺货">缺货</Option>
-              <Option value="错发">错发</Option>
-            </Select>
-            <span>
-              <FilterOutlined /> 时间范围:{" "}
-            </span>
-            <Select
-              value={timeRange}
-              onChange={handleTimeRangeChange}
-              style={{ width: 120 }}
-            >
-              <Option value="all">全部</Option>
-              <Option value="week">一周</Option>
-              <Option value="month">一个月</Option>
-              <Option value="quarter">三个月</Option>
-            </Select>
-          </Space>
-        </div>
+          添加异常记录
+        </Button>
+      </div>
 
-        {/* 按日期分组显示异常记录 */}
-        {Object.keys(groupedData).length === 0 ? (
-          <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <Text type="secondary">没有符合条件的异常记录</Text>
-          </div>
-        ) : (
-          Object.entries(groupedData).map(([date, records]) => (
-            <div key={date} style={{ marginBottom: 24 }}>
-              <Divider orientation="left">
-                <Title level={5} style={{ margin: 0 }}>
-                  {formatDisplayDate(date)}
-                </Title>
-              </Divider>
+      {/* 操作按钮和筛选器 */}
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+            刷新数据
+          </Button>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+          <Input
+            placeholder="搜索客户代码/跟踪号/SKU"
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 200 }}
+            allowClear
+          />
+          <span>
+            <FilterOutlined /> 异常类型:{" "}
+          </span>
+          <Select
+            value={typeFilter}
+            onChange={handleTypeFilterChange}
+            style={{ width: 120 }}
+          >
+            <Option value="all">全部</Option>
+            <Option value="无轨迹">无轨迹</Option>
+            <Option value="缺货">缺货</Option>
+            <Option value="错发">错发</Option>
+          </Select>
+          <span>
+            <FilterOutlined /> 快递公司:{" "}
+          </span>
+          <Select
+            value={courierFilter}
+            onChange={handleCourierFilterChange}
+            style={{ width: 120 }}
+          >
+            <Option value="all">全部</Option>
+            <Option value="FedEx">FedEx</Option>
+            <Option value="UPS">UPS</Option>
+            <Option value="未知">未知</Option>
+          </Select>
+        </div>
+      </div>
+
+      {/* 按月份分组显示异常记录 */}
+      {Object.keys(groupedByMonth).length === 0 ? (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "50px 20px", 
+          background: "#fff", 
+          border: "1px solid #f0f0f0", 
+          borderRadius: "2px" 
+        }}>
+          <Text type="secondary">没有符合条件的异常记录</Text>
+        </div>
+      ) : (
+        Object.entries(groupedByMonth).map(([month, records]) => (
+          <div key={month} style={{ 
+            marginBottom: 24, 
+            background: "#fff", 
+            border: "1px solid #f0f0f0", 
+            borderRadius: "2px" 
+          }}>
+            <div style={{ 
+              padding: "10px 16px", 
+              fontWeight: "bold", 
+              fontSize: "16px", 
+              borderBottom: "1px solid #f0f0f0",
+              backgroundColor: "#fafafa" 
+            }}>
+              {month} ({records.length}条记录)
+            </div>
+            <div style={{ padding: "16px" }}>
               <Table
                 columns={columns}
                 dataSource={records.map((item) => ({
@@ -440,15 +482,15 @@ const ExceptionRecordManagement = () => {
                   key: item._id,
                 }))}
                 loading={loading}
-                pagination={false}
+                pagination={records.length > 10 ? { pageSize: 10 } : false}
                 size="small"
                 scroll={{ x: 800 }}
                 bordered
               />
             </div>
-          ))
-        )}
-      </Card>
+          </div>
+        ))
+      )}
 
       <ExceptionForm
         visible={formVisible}
