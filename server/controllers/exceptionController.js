@@ -285,19 +285,39 @@ exports.getExceptionAnalysis = async (req, res) => {
   try {
     const exceptionRecords = await ExceptionRecord.find();
     
-    // SKU异常频率统计
+    // SKU异常频率统计（带异常类型细分）
     const skuFrequency = {};
     exceptionRecords.forEach(record => {
       if (record.SKU) {
-        skuFrequency[record.SKU] = (skuFrequency[record.SKU] || 0) + 1;
+        // 初始化SKU记录
+        if (!skuFrequency[record.SKU]) {
+          skuFrequency[record.SKU] = {
+            total: 0,
+            无轨迹: 0,
+            缺货: 0,
+            错发: 0
+          };
+        }
+        
+        // 增加总计数
+        skuFrequency[record.SKU].total += 1;
+        
+        // 增加相应类型计数
+        skuFrequency[record.SKU][record.异常类型] += 1;
       }
     });
     
     // 按出现频率排序
     const sortedSkuFrequency = Object.entries(skuFrequency)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 10)  // 取前10个出现频率最高的SKU
-      .map(([sku, count]) => ({ sku, count }));
+      .map(([sku, counts]) => ({
+        sku,
+        count: counts.total,
+        noTrackingCount: counts.无轨迹,
+        outOfStockCount: counts.缺货,
+        wrongShipmentCount: counts.错发
+      }));
     
     // 统计快递公司异常情况
     let fedexCount = 0;

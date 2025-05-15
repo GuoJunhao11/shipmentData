@@ -11,6 +11,7 @@ import {
   Select,
   Space,
   Tooltip,
+  Empty,
 } from "antd";
 import { 
   FilterOutlined, 
@@ -94,13 +95,21 @@ function Dashboard() {
   const { data, loading, error, serverStatus, checkStatus } = useExpressData();
   const {
     stats: exceptionStats,
+    analysis: exceptionAnalysis,
     statsLoading: exceptionStatsLoading,
+    analysisLoading: exceptionAnalysisLoading,
     fetchStats: fetchExceptionStats,
+    fetchAnalysis: fetchExceptionAnalysis,
   } = useExceptionData();
   const [filteredData, setFilteredData] = useState([]);
 
   // 设置工作起始时间为09:00
   const workStartTime = "09:00";
+
+  // 确保加载异常分析数据
+  useEffect(() => {
+    fetchExceptionAnalysis();
+  }, [fetchExceptionAnalysis]);
 
   // 根据时间范围筛选数据
   useEffect(() => {
@@ -725,6 +734,87 @@ function Dashboard() {
     ],
   };
 
+  // 准备异常SKU分析图表
+  const exceptionSKUAnalysisOption = {
+    title: {
+      text: '异常频率最高的SKU分析',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: function(params) {
+        const skuData = params[0];
+        return `${skuData.name}<br/>
+                ${params.map(param => `${param.seriesName}: ${param.value || 0}次`).join('<br/>')}`;
+      }
+    },
+    legend: {
+      data: ['无轨迹', '缺货', '错发'],
+      bottom: 0
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      name: '异常数量'
+    },
+    yAxis: {
+      type: 'category',
+      data: (exceptionAnalysis.topSKUs || []).map(item => item.sku).reverse(),
+      axisLabel: {
+        width: 120,
+        overflow: 'truncate',
+        interval: 0
+      }
+    },
+    series: [
+      {
+        name: '无轨迹',
+        type: 'bar',
+        stack: '总量',
+        emphasis: {
+          focus: 'series'
+        },
+        data: (exceptionAnalysis.topSKUs || []).map(item => item.noTrackingCount || 0).reverse(),
+        itemStyle: {
+          color: '#faad14'
+        }
+      },
+      {
+        name: '缺货',
+        type: 'bar',
+        stack: '总量',
+        emphasis: {
+          focus: 'series'
+        },
+        data: (exceptionAnalysis.topSKUs || []).map(item => item.outOfStockCount || 0).reverse(),
+        itemStyle: {
+          color: '#f5222d'
+        }
+      },
+      {
+        name: '错发',
+        type: 'bar',
+        stack: '总量',
+        emphasis: {
+          focus: 'series'
+        },
+        data: (exceptionAnalysis.topSKUs || []).map(item => item.wrongShipmentCount || 0).reverse(),
+        itemStyle: {
+          color: '#1890ff'
+        }
+      }
+    ]
+  };
+
   // 异常统计卡片行
   const exceptionStatsRow = (
     <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
@@ -859,6 +949,23 @@ function Dashboard() {
         <ReactECharts
           option={storageOption}
           style={{ height: "100%", width: "100%" }}
+          className="chart-container"
+        />
+      ),
+    },
+    {
+      key: "exceptionSKU",
+      label: "异常SKU分析",
+      children: exceptionAnalysisLoading ? (
+        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Spin size="large" />
+        </div>
+      ) : (exceptionAnalysis.topSKUs || []).length === 0 ? (
+        <Empty description="暂无异常SKU数据" style={{ marginTop: 100 }} />
+      ) : (
+        <ReactECharts
+          option={exceptionSKUAnalysisOption}
+          style={{ height: "100%", width: "100%", minHeight: 400 }}
           className="chart-container"
         />
       ),
