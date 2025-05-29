@@ -16,6 +16,7 @@ import {
   LockOutlined,
   UnlockOutlined,
   ExceptionOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import { AuthProvider, AuthContext } from "./contexts/AuthContext";
 import Login from "./components/auth/Login";
@@ -23,6 +24,7 @@ import AdminRoute from "./components/auth/AdminRoute";
 import Dashboard from "./components/dashboard/Dashboard";
 import ExpressDataManagement from "./components/ExpressDataManagement";
 import ExceptionRecordManagement from "./components/ExceptionRecordManagement";
+import InventoryExceptionManagement from "./components/InventoryExceptionManagement";
 import UnauthorizedPage from "./components/UnauthorizedPage";
 import "./App.css";
 
@@ -68,6 +70,9 @@ function MainLayout() {
           <Menu.Item key="3" icon={<ExceptionOutlined />}>
             <Link to="/exceptions">异常记录</Link>
           </Menu.Item>
+          <Menu.Item key="4" icon={<WarningOutlined />}>
+            <Link to="/inventory-exceptions">库存异常</Link>
+          </Menu.Item>
         </Menu>
       </Sider>
       <Layout className="site-layout">
@@ -103,15 +108,25 @@ function MainLayout() {
                 )
               }
             />
-            <Route 
-              path="/exceptions" 
+            <Route
+              path="/exceptions"
               element={
                 isAdmin ? (
                   <ExceptionRecordManagement />
                 ) : (
                   <Navigate to="/unauthorized" replace />
                 )
-              } 
+              }
+            />
+            <Route
+              path="/inventory-exceptions"
+              element={
+                isAdmin ? (
+                  <InventoryExceptionManagement />
+                ) : (
+                  <Navigate to="/unauthorized" replace />
+                )
+              }
             />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
           </Routes>

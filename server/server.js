@@ -15,8 +15,10 @@ app.use(express.json());
 
 // API 路由
 app.use("/api/express", require("./routes/expressRoutes"));
-// 添加新的异常记录路由
+// 添加异常记录路由
 app.use("/api/exception", require("./routes/exceptionRoutes"));
+// 添加库存异常路由
+app.use("/api/inventory-exception", require("./routes/inventoryRoutes"));
 
 // 服务器状态检查
 app.get("/api/status", (req, res) => {

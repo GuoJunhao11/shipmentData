@@ -13,14 +13,15 @@ import {
   Tooltip,
   Empty,
 } from "antd";
-import { 
-  FilterOutlined, 
-  ArrowUpOutlined, 
-  ArrowDownOutlined 
+import {
+  FilterOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
 } from "@ant-design/icons";
 import ReactECharts from "echarts-for-react";
 import { useExpressData } from "../../hooks/useExpressData";
 import { useExceptionData } from "../../hooks/useExceptionData";
+import { useInventoryData } from "../../hooks/useInventoryData";
 import ServerStatus from "../ServerStatus";
 import moment from "moment";
 
@@ -101,6 +102,10 @@ function Dashboard() {
     fetchStats: fetchExceptionStats,
     fetchAnalysis: fetchExceptionAnalysis,
   } = useExceptionData();
+
+  // 添加库存异常数据
+  const { data: inventoryData, loading: inventoryLoading } = useInventoryData();
+
   const [filteredData, setFilteredData] = useState([]);
 
   // 设置工作起始时间为09:00
@@ -173,6 +178,32 @@ function Dashboard() {
     setFilteredData(filteredResult);
   }, [data, timeRange]);
 
+  // 计算当月库存异常统计
+  const calculateInventoryMonthlyStats = () => {
+    const currentMonth = moment().format("YYYY-MM");
+    const monthlyData = inventoryData.filter((item) => {
+      const itemDate = parseDate(item.日期);
+      return itemDate && itemDate.format("YYYY-MM") === currentMonth;
+    });
+
+    const totalCount = monthlyData.length;
+    let surplusCount = 0;
+    let deficitCount = 0;
+
+    monthlyData.forEach((item) => {
+      const difference = item.实际库存 - item.系统库存;
+      if (difference > 0) {
+        surplusCount++;
+      } else if (difference < 0) {
+        deficitCount++;
+      }
+    });
+
+    return { totalCount, surplusCount, deficitCount };
+  };
+
+  const inventoryStats = calculateInventoryMonthlyStats();
+
   // 加载状态
   if (loading) {
     return (
@@ -189,7 +220,7 @@ function Dashboard() {
       <Alert message="数据加载失败" description={error} type="error" showIcon />
     );
   }
-  
+
   // 确保数据可用
   if (!filteredData || filteredData.length === 0) {
     return (
@@ -737,82 +768,90 @@ function Dashboard() {
   // 准备异常SKU分析图表
   const exceptionSKUAnalysisOption = {
     title: {
-      text: '异常频率最高的SKU分析',
-      left: 'center'
+      text: "异常频率最高的SKU分析",
+      left: "center",
     },
     tooltip: {
-      trigger: 'axis',
+      trigger: "axis",
       axisPointer: {
-        type: 'shadow'
+        type: "shadow",
       },
-      formatter: function(params) {
+      formatter: function (params) {
         const skuData = params[0];
         return `${skuData.name}<br/>
-                ${params.map(param => `${param.seriesName}: ${param.value || 0}次`).join('<br/>')}`;
-      }
+                ${params
+                  .map((param) => `${param.seriesName}: ${param.value || 0}次`)
+                  .join("<br/>")}`;
+      },
     },
     legend: {
-      data: ['无轨迹', '缺货', '错发'],
-      bottom: 0
+      data: ["无轨迹", "缺货", "错发"],
+      bottom: 0,
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '10%',
-      top: '10%',
-      containLabel: true
+      left: "3%",
+      right: "4%",
+      bottom: "10%",
+      top: "10%",
+      containLabel: true,
     },
     xAxis: {
-      type: 'value',
-      name: '异常数量'
+      type: "value",
+      name: "异常数量",
     },
     yAxis: {
-      type: 'category',
-      data: (exceptionAnalysis.topSKUs || []).map(item => item.sku).reverse(),
+      type: "category",
+      data: (exceptionAnalysis.topSKUs || []).map((item) => item.sku).reverse(),
       axisLabel: {
         width: 120,
-        overflow: 'truncate',
-        interval: 0
-      }
+        overflow: "truncate",
+        interval: 0,
+      },
     },
     series: [
       {
-        name: '无轨迹',
-        type: 'bar',
-        stack: '总量',
+        name: "无轨迹",
+        type: "bar",
+        stack: "总量",
         emphasis: {
-          focus: 'series'
+          focus: "series",
         },
-        data: (exceptionAnalysis.topSKUs || []).map(item => item.noTrackingCount || 0).reverse(),
+        data: (exceptionAnalysis.topSKUs || [])
+          .map((item) => item.noTrackingCount || 0)
+          .reverse(),
         itemStyle: {
-          color: '#faad14'
-        }
+          color: "#faad14",
+        },
       },
       {
-        name: '缺货',
-        type: 'bar',
-        stack: '总量',
+        name: "缺货",
+        type: "bar",
+        stack: "总量",
         emphasis: {
-          focus: 'series'
+          focus: "series",
         },
-        data: (exceptionAnalysis.topSKUs || []).map(item => item.outOfStockCount || 0).reverse(),
+        data: (exceptionAnalysis.topSKUs || [])
+          .map((item) => item.outOfStockCount || 0)
+          .reverse(),
         itemStyle: {
-          color: '#f5222d'
-        }
+          color: "#f5222d",
+        },
       },
       {
-        name: '错发',
-        type: 'bar',
-        stack: '总量',
+        name: "错发",
+        type: "bar",
+        stack: "总量",
         emphasis: {
-          focus: 'series'
+          focus: "series",
         },
-        data: (exceptionAnalysis.topSKUs || []).map(item => item.wrongShipmentCount || 0).reverse(),
+        data: (exceptionAnalysis.topSKUs || [])
+          .map((item) => item.wrongShipmentCount || 0)
+          .reverse(),
         itemStyle: {
-          color: '#1890ff'
-        }
-      }
-    ]
+          color: "#1890ff",
+        },
+      },
+    ],
   };
 
   // 异常统计卡片行
@@ -823,10 +862,19 @@ function Dashboard() {
           <Statistic
             title="当月异常记录总数"
             value={exceptionStats.currentMonth?.totalExceptions || 0}
-            valueStyle={{ 
-              color: parseFloat(exceptionStats.changeRate?.total) < 0 ? "#3f8600" : "#cf1322" 
+            valueStyle={{
+              color:
+                parseFloat(exceptionStats.changeRate?.total) < 0
+                  ? "#3f8600"
+                  : "#cf1322",
             }}
-            prefix={parseFloat(exceptionStats.changeRate?.total) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            prefix={
+              parseFloat(exceptionStats.changeRate?.total) < 0 ? (
+                <ArrowDownOutlined />
+              ) : (
+                <ArrowUpOutlined />
+              )
+            }
             suffix={`${exceptionStats.changeRate?.total || 0}%`}
             loading={exceptionStatsLoading}
           />
@@ -840,10 +888,19 @@ function Dashboard() {
           <Statistic
             title="当月无轨迹"
             value={exceptionStats.currentMonth?.noTracking || 0}
-            valueStyle={{ 
-              color: parseFloat(exceptionStats.changeRate?.noTracking) < 0 ? "#3f8600" : "#cf1322" 
+            valueStyle={{
+              color:
+                parseFloat(exceptionStats.changeRate?.noTracking) < 0
+                  ? "#3f8600"
+                  : "#cf1322",
             }}
-            prefix={parseFloat(exceptionStats.changeRate?.noTracking) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            prefix={
+              parseFloat(exceptionStats.changeRate?.noTracking) < 0 ? (
+                <ArrowDownOutlined />
+              ) : (
+                <ArrowUpOutlined />
+              )
+            }
             suffix={`${exceptionStats.changeRate?.noTracking || 0}%`}
             loading={exceptionStatsLoading}
           />
@@ -857,10 +914,19 @@ function Dashboard() {
           <Statistic
             title="当月缺货"
             value={exceptionStats.currentMonth?.outOfStock || 0}
-            valueStyle={{ 
-              color: parseFloat(exceptionStats.changeRate?.outOfStock) < 0 ? "#3f8600" : "#cf1322" 
+            valueStyle={{
+              color:
+                parseFloat(exceptionStats.changeRate?.outOfStock) < 0
+                  ? "#3f8600"
+                  : "#cf1322",
             }}
-            prefix={parseFloat(exceptionStats.changeRate?.outOfStock) < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+            prefix={
+              parseFloat(exceptionStats.changeRate?.outOfStock) < 0 ? (
+                <ArrowDownOutlined />
+              ) : (
+                <ArrowUpOutlined />
+              )
+            }
             suffix={`${exceptionStats.changeRate?.outOfStock || 0}%`}
             loading={exceptionStatsLoading}
           />
@@ -880,6 +946,63 @@ function Dashboard() {
           <div style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.45)" }}>
             当月错发: {exceptionStats.currentMonth?.wrongShipment || 0}
           </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+
+  // 库存异常统计卡片行
+  const inventoryStatsRow = (
+    <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="当月库存异常总数"
+            value={inventoryStats.totalCount}
+            valueStyle={{ color: "#1890ff" }}
+            loading={inventoryLoading}
+          />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="盈余记录"
+            value={inventoryStats.surplusCount}
+            valueStyle={{ color: "#52c41a" }}
+            loading={inventoryLoading}
+          />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="亏损记录"
+            value={inventoryStats.deficitCount}
+            valueStyle={{ color: "#f5222d" }}
+            loading={inventoryLoading}
+          />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} md={6} lg={6}>
+        <Card className="stat-card">
+          <Statistic
+            title="正常比例"
+            value={
+              inventoryStats.totalCount > 0
+                ? (
+                    ((inventoryStats.totalCount -
+                      inventoryStats.surplusCount -
+                      inventoryStats.deficitCount) /
+                      inventoryStats.totalCount) *
+                    100
+                  ).toFixed(1)
+                : 0
+            }
+            suffix="%"
+            valueStyle={{ color: "#722ed1" }}
+            loading={inventoryLoading}
+          />
         </Card>
       </Col>
     </Row>
@@ -957,7 +1080,14 @@ function Dashboard() {
       key: "exceptionSKU",
       label: "异常SKU分析",
       children: exceptionAnalysisLoading ? (
-        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Spin size="large" />
         </div>
       ) : (exceptionAnalysis.topSKUs || []).length === 0 ? (
@@ -1137,6 +1267,9 @@ function Dashboard() {
 
         {/* 异常统计行 */}
         {exceptionStatsRow}
+
+        {/* 库存异常统计行 */}
+        {inventoryStatsRow}
 
         {/* 图表分析 */}
         <div className="chart-container">
