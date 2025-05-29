@@ -7,9 +7,9 @@ const mongoose = require("mongoose");
  * - 柜号: 集装箱/托盘编号
  * - 类型: 限定为 '整柜', '散货', '托盘' 三种类型
  * - 客户代码: 客户的唯一标识码
- * - 到达时间: 到达时间
+ * - 到达时间: 到达时间（可选）
  * - 状态: 限定为 '已完成', '待拆柜', '待核实', '有问题' 四种状态
- * - 问题: 问题描述
+ * - 问题: 问题描述（必填）
  * - createdAt: 记录创建时间
  */
 const ContainerSchema = new mongoose.Schema({
@@ -68,7 +68,8 @@ const ContainerSchema = new mongoose.Schema({
   },
   到达时间: {
     type: String,
-    required: true,
+    required: false, // 改为可选
+    default: "",
   },
   状态: {
     type: String,
@@ -77,7 +78,7 @@ const ContainerSchema = new mongoose.Schema({
   },
   问题: {
     type: String,
-    default: "",
+    required: true, // 改为必填
   },
   createdAt: {
     type: Date,

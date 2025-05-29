@@ -1,6 +1,14 @@
 // src/components/ContainerForm.js
 import React, { useState, useEffect } from "react";
-import { Form, Input, Button, DatePicker, Select, message, Modal } from "antd";
+import {
+  Form,
+  Input,
+  Button,
+  DatePicker,
+  Select,
+  message,
+  Modal,
+} from "antd";
 import moment from "moment";
 
 const { Option } = Select;
@@ -110,10 +118,10 @@ const ContainerForm = ({
         }
       }
 
-      // 格式化到达时间 - 确保是 HH:mm 格式
-      if (values.到达时间) {
+      // 格式化到达时间 - 确保是 HH:mm 格式（如果有输入的话）
+      if (values.到达时间 && values.到达时间.trim() !== "") {
         const timeStr = values.到达时间.toString().trim();
-
+        
         // 如果用户输入的是简单格式如 "12" 或 "15"，自动补充 ":00"
         if (/^\d{1,2}$/.test(timeStr)) {
           const hour = parseInt(timeStr);
@@ -127,15 +135,16 @@ const ContainerForm = ({
           const hour = parseInt(parts[0]);
           const minute = parseInt(parts[1]);
           if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-            formattedValues.到达时间 = `${hour
-              .toString()
-              .padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
           }
         }
         // 如果已经是正确格式，保持不变
         else if (/^\d{2}:\d{2}$/.test(timeStr)) {
           formattedValues.到达时间 = timeStr;
         }
+      } else {
+        // 如果没有输入到达时间，设置为空字符串
+        formattedValues.到达时间 = "";
       }
 
       await onSubmit(formattedValues);
@@ -201,15 +210,14 @@ const ContainerForm = ({
           name="到达时间"
           label="到达时间"
           rules={[
-            { required: true, message: "请输入到达时间" },
             {
-              pattern: /^(\d{1,2}(:\d{2})?|\d{2}:\d{2})$/,
+              pattern: /^(\d{1,2}(:\d{2})?|\d{2}:\d{2})?$/,
               message: "请输入正确的时间格式，如：12:00 或 15",
             },
           ]}
         >
           <Input
-            placeholder="输入到达时间，如：12:00 或 15"
+            placeholder="输入到达时间，如：12:00 或 15（可选）"
             style={{ width: "100%" }}
           />
         </Form.Item>
@@ -227,8 +235,12 @@ const ContainerForm = ({
           </Select>
         </Form.Item>
 
-        <Form.Item name="问题" label="问题">
-          <TextArea rows={3} placeholder="输入问题描述（可选）" />
+        <Form.Item 
+          name="问题" 
+          label="问题"
+          rules={[{ required: true, message: "请输入问题描述" }]}
+        >
+          <TextArea rows={3} placeholder="输入问题描述" />
         </Form.Item>
 
         <Form.Item>
