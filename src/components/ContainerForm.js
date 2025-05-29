@@ -1,15 +1,6 @@
 // src/components/ContainerForm.js
 import React, { useState, useEffect } from "react";
-import {
-  Form,
-  Input,
-  Button,
-  DatePicker,
-  Select,
-  TimePicker,
-  message,
-  Modal,
-} from "antd";
+import { Form, Input, Button, DatePicker, Select, message, Modal } from "antd";
 import moment from "moment";
 
 const { Option } = Select;
@@ -27,7 +18,7 @@ const ContainerForm = ({
 
   useEffect(() => {
     if (visible && initialValues) {
-      // 如果有初始值，格式化日期和时间
+      // 如果有初始值，格式化日期
       const formattedValues = { ...initialValues };
 
       // 处理日期字段，转换为moment对象
@@ -66,20 +57,8 @@ const ContainerForm = ({
         formattedValues.日期 = null;
       }
 
-      // 处理到达时间字段
-      if (
-        initialValues.到达时间 &&
-        typeof initialValues.到达时间 === "string"
-      ) {
-        const timeMoment = moment(initialValues.到达时间, "HH:mm");
-        if (timeMoment.isValid()) {
-          formattedValues.到达时间 = timeMoment;
-        } else {
-          formattedValues.到达时间 = null;
-        }
-      } else {
-        formattedValues.到达时间 = null;
-      }
+      // 到达时间保持字符串格式，不需要转换为moment
+      formattedValues.到达时间 = initialValues.到达时间 || "";
 
       form.setFieldsValue(formattedValues);
     } else if (visible) {
@@ -89,6 +68,7 @@ const ContainerForm = ({
         日期: moment(),
         类型: "整柜",
         状态: "待拆柜",
+        到达时间: "",
       });
     }
   }, [visible, initialValues, form]);
@@ -97,7 +77,7 @@ const ContainerForm = ({
     try {
       setSubmitLoading(true);
 
-      // 确保日期格式为 MM/DD/YYYY，时间格式为 HH:mm
+      // 确保日期格式为 MM/DD/YYYY
       let formattedValues = { ...values };
 
       if (values.日期) {
@@ -130,14 +110,31 @@ const ContainerForm = ({
         }
       }
 
+      // 格式化到达时间 - 确保是 HH:mm 格式
       if (values.到达时间) {
-        // 处理moment对象
-        if (moment.isMoment(values.到达时间) && values.到达时间.isValid()) {
-          formattedValues.到达时间 = values.到达时间.format("HH:mm");
+        const timeStr = values.到达时间.toString().trim();
+
+        // 如果用户输入的是简单格式如 "12" 或 "15"，自动补充 ":00"
+        if (/^\d{1,2}$/.test(timeStr)) {
+          const hour = parseInt(timeStr);
+          if (hour >= 0 && hour <= 23) {
+            formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:00`;
+          }
         }
-        // 处理字符串格式
-        else if (typeof values.到达时间 === "string") {
-          formattedValues.到达时间 = values.到达时间;
+        // 如果用户输入的是 "12:30" 或 "15:45" 格式
+        else if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+          const parts = timeStr.split(":");
+          const hour = parseInt(parts[0]);
+          const minute = parseInt(parts[1]);
+          if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+            formattedValues.到达时间 = `${hour
+              .toString()
+              .padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+          }
+        }
+        // 如果已经是正确格式，保持不变
+        else if (/^\d{2}:\d{2}$/.test(timeStr)) {
+          formattedValues.到达时间 = timeStr;
         }
       }
 
@@ -203,11 +200,16 @@ const ContainerForm = ({
         <Form.Item
           name="到达时间"
           label="到达时间"
-          rules={[{ required: true, message: "请选择到达时间" }]}
+          rules={[
+            { required: true, message: "请输入到达时间" },
+            {
+              pattern: /^(\d{1,2}(:\d{2})?|\d{2}:\d{2})$/,
+              message: "请输入正确的时间格式，如：12:00 或 15",
+            },
+          ]}
         >
-          <TimePicker
-            format="HH:mm"
-            placeholder="选择到达时间"
+          <Input
+            placeholder="输入到达时间，如：12:00 或 15"
             style={{ width: "100%" }}
           />
         </Form.Item>
