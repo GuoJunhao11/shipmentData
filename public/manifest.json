@@ -1,6 +1,6 @@
 {
-  "short_name": "快递数据分析",
-  "name": "快递数据分析系统",
+  "short_name": "JEC仓库数据分析",
+  "name": "JEC仓库数据分析系统",
   "icons": [
     {
       "src": "favicon.ico",
@@ -22,4 +22,4 @@
   "display": "standalone",
   "theme_color": "#2c3e50",
   "background_color": "#ffffff"
-} 
+}

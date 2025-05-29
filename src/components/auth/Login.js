@@ -42,7 +42,7 @@ const Login = () => {
         background: "#f0f2f5",
       }}
     >
-      <Card title="快递数据分析系统 - 管理员登录" style={{ width: 400 }}>
+      <Card title="JEC仓库数据分析系统 - 管理员登录" style={{ width: 400 }}>
         <Form
           form={form} // ✅ 将 form 绑定到表单中
           name="login"

@@ -17,6 +17,7 @@ import {
   UnlockOutlined,
   ExceptionOutlined,
   WarningOutlined,
+  ContainerOutlined,
 } from "@ant-design/icons";
 import { AuthProvider, AuthContext } from "./contexts/AuthContext";
 import Login from "./components/auth/Login";
@@ -25,6 +26,7 @@ import Dashboard from "./components/dashboard/Dashboard";
 import ExpressDataManagement from "./components/ExpressDataManagement";
 import ExceptionRecordManagement from "./components/ExceptionRecordManagement";
 import InventoryExceptionManagement from "./components/InventoryExceptionManagement";
+import ContainerManagement from "./components/ContainerManagement";
 import UnauthorizedPage from "./components/UnauthorizedPage";
 import "./App.css";
 
@@ -53,7 +55,7 @@ function MainLayout() {
     <Layout className="app-layout">
       <Sider trigger={null} collapsible collapsed={collapsed}>
         <div className="logo">
-          <span>{collapsed ? "📊" : "📊 快递数据分析"}</span>
+          <span>{collapsed ? "📊" : "📊 JEC仓库数据分析"}</span>
         </div>
         <Menu
           theme="dark"
@@ -72,6 +74,9 @@ function MainLayout() {
           </Menu.Item>
           <Menu.Item key="4" icon={<WarningOutlined />}>
             <Link to="/inventory-exceptions">库存异常</Link>
+          </Menu.Item>
+          <Menu.Item key="5" icon={<ContainerOutlined />}>
+            <Link to="/containers">集装箱管理</Link>
           </Menu.Item>
         </Menu>
       </Sider>
@@ -123,6 +128,16 @@ function MainLayout() {
               element={
                 isAdmin ? (
                   <InventoryExceptionManagement />
+                ) : (
+                  <Navigate to="/unauthorized" replace />
+                )
+              }
+            />
+            <Route
+              path="/containers"
+              element={
+                isAdmin ? (
+                  <ContainerManagement />
                 ) : (
                   <Navigate to="/unauthorized" replace />
                 )
