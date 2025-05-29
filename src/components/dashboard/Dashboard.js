@@ -187,19 +187,7 @@ function Dashboard() {
     });
 
     const totalCount = monthlyData.length;
-    let surplusCount = 0;
-    let deficitCount = 0;
-
-    monthlyData.forEach((item) => {
-      const difference = item.实际库存 - item.系统库存;
-      if (difference > 0) {
-        surplusCount++;
-      } else if (difference < 0) {
-        deficitCount++;
-      }
-    });
-
-    return { totalCount, surplusCount, deficitCount };
+    return { totalCount };
   };
 
   const inventoryStats = calculateInventoryMonthlyStats();
@@ -951,7 +939,7 @@ function Dashboard() {
     </Row>
   );
 
-  // 库存异常统计卡片行
+  // 库存异常统计卡片行 - 只保留总数
   const inventoryStatsRow = (
     <Row gutter={16} style={{ marginBottom: 24 }} className="stats-row">
       <Col xs={24} sm={12} md={6} lg={6}>
@@ -964,47 +952,10 @@ function Dashboard() {
           />
         </Card>
       </Col>
-      <Col xs={24} sm={12} md={6} lg={6}>
-        <Card className="stat-card">
-          <Statistic
-            title="盈余记录"
-            value={inventoryStats.surplusCount}
-            valueStyle={{ color: "#52c41a" }}
-            loading={inventoryLoading}
-          />
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6} lg={6}>
-        <Card className="stat-card">
-          <Statistic
-            title="亏损记录"
-            value={inventoryStats.deficitCount}
-            valueStyle={{ color: "#f5222d" }}
-            loading={inventoryLoading}
-          />
-        </Card>
-      </Col>
-      <Col xs={24} sm={12} md={6} lg={6}>
-        <Card className="stat-card">
-          <Statistic
-            title="正常比例"
-            value={
-              inventoryStats.totalCount > 0
-                ? (
-                    ((inventoryStats.totalCount -
-                      inventoryStats.surplusCount -
-                      inventoryStats.deficitCount) /
-                      inventoryStats.totalCount) *
-                    100
-                  ).toFixed(1)
-                : 0
-            }
-            suffix="%"
-            valueStyle={{ color: "#722ed1" }}
-            loading={inventoryLoading}
-          />
-        </Card>
-      </Col>
+      {/* 空的占位列，保持布局一致 */}
+      <Col xs={24} sm={12} md={6} lg={6}></Col>
+      <Col xs={24} sm={12} md={6} lg={6}></Col>
+      <Col xs={24} sm={12} md={6} lg={6}></Col>
     </Row>
   );
 
@@ -1268,7 +1219,7 @@ function Dashboard() {
         {/* 异常统计行 */}
         {exceptionStatsRow}
 
-        {/* 库存异常统计行 */}
+        {/* 库存异常统计行 - 只显示总数 */}
         {inventoryStatsRow}
 
         {/* 图表分析 */}

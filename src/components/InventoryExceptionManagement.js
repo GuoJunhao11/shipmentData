@@ -10,10 +10,7 @@ import {
   Select,
   Typography,
   Tag,
-  Statistic,
-  Card,
-  Row,
-  Col,
+  Divider,
 } from "antd";
 import {
   PlusOutlined,
@@ -125,6 +122,7 @@ const InventoryExceptionManagement = () => {
   const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
   const [searchText, setSearchText] = useState(""); // 搜索文本
   const [filteredData, setFilteredData] = useState([]);
+  const [groupedByCustomer, setGroupedByCustomer] = useState({}); // 按客户分组的数据
 
   useEffect(() => {
     if (error) {
@@ -136,6 +134,7 @@ const InventoryExceptionManagement = () => {
   useEffect(() => {
     if (!data || data.length === 0) {
       setFilteredData([]);
+      setGroupedByCustomer({});
       return;
     }
 
@@ -181,51 +180,36 @@ const InventoryExceptionManagement = () => {
       );
     }
 
-    // 按日期排序（新的在前）
-    filteredResult.sort((a, b) => {
-      const dateA = parseDateForSort(a.日期);
-      const dateB = parseDateForSort(b.日期);
-      return dateB - dateA;
-    });
-
     setFilteredData(filteredResult);
-  }, [data, timeRange, searchText]);
 
-  // 计算当月统计数据
-  const calculateMonthlyStats = () => {
-    const currentMonth = moment().format("YYYY-MM");
-    const monthlyData = filteredData.filter((item) => {
-      const itemDate = parseDateForSort(item.日期);
-      return itemDate && moment(itemDate).format("YYYY-MM") === currentMonth;
-    });
-
-    const totalCount = monthlyData.length;
-    let surplusCount = 0;
-    let deficitCount = 0;
-    let totalSurplus = 0;
-    let totalDeficit = 0;
-
-    monthlyData.forEach((item) => {
-      const difference = item.实际库存 - item.系统库存;
-      if (difference > 0) {
-        surplusCount++;
-        totalSurplus += difference;
-      } else if (difference < 0) {
-        deficitCount++;
-        totalDeficit += Math.abs(difference);
+    // 按客户代码分组
+    const grouped = {};
+    filteredResult.forEach((item) => {
+      const customerCode = item.客户代码 || "未知客户";
+      if (!grouped[customerCode]) {
+        grouped[customerCode] = [];
       }
+      grouped[customerCode].push(item);
     });
 
-    return {
-      totalCount,
-      surplusCount,
-      deficitCount,
-      totalSurplus,
-      totalDeficit,
-    };
-  };
+    // 对每个客户内的记录按日期降序排序
+    Object.keys(grouped).forEach((customerCode) => {
+      grouped[customerCode].sort((a, b) => {
+        const dateA = parseDateForSort(a.日期);
+        const dateB = parseDateForSort(b.日期);
+        return dateB - dateA;
+      });
+    });
 
-  const monthlyStats = calculateMonthlyStats();
+    // 按客户代码排序
+    const sortedCustomers = Object.keys(grouped).sort();
+    const sortedGrouped = {};
+    sortedCustomers.forEach((customer) => {
+      sortedGrouped[customer] = grouped[customer];
+    });
+
+    setGroupedByCustomer(sortedGrouped);
+  }, [data, timeRange, searchText]);
 
   const handleAddClick = () => {
     setCurrentData(null);
@@ -287,12 +271,6 @@ const InventoryExceptionManagement = () => {
         const dateB = parseDateForSort(b.日期);
         return dateA - dateB;
       },
-    },
-    {
-      title: "客户代码",
-      dataIndex: "客户代码",
-      key: "客户代码",
-      width: 120,
     },
     {
       title: "SKU",
@@ -379,55 +357,6 @@ const InventoryExceptionManagement = () => {
     <div style={{ padding: "20px" }}>
       <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
 
-      {/* 统计卡片 */}
-      <Card title="当月统计" style={{ marginBottom: 20 }}>
-        <Row gutter={16} className="stats-row">
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card className="stat-card">
-              <Statistic
-                title="异常记录总数"
-                value={monthlyStats.totalCount}
-                valueStyle={{ color: "#1890ff" }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card className="stat-card">
-              <Statistic
-                title="盈余记录"
-                value={monthlyStats.surplusCount}
-                suffix={`(+${monthlyStats.totalSurplus})`}
-                valueStyle={{ color: "#52c41a" }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card className="stat-card">
-              <Statistic
-                title="亏损记录"
-                value={monthlyStats.deficitCount}
-                suffix={`(-${monthlyStats.totalDeficit})`}
-                valueStyle={{ color: "#f5222d" }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card className="stat-card">
-              <Statistic
-                title="净差异"
-                value={monthlyStats.totalSurplus - monthlyStats.totalDeficit}
-                valueStyle={{
-                  color:
-                    monthlyStats.totalSurplus >= monthlyStats.totalDeficit
-                      ? "#52c41a"
-                      : "#f5222d",
-                }}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </Card>
-
       {/* 管理标题和添加按钮 */}
       <div
         style={{
@@ -493,8 +422,8 @@ const InventoryExceptionManagement = () => {
         </div>
       </div>
 
-      {/* 数据表格 */}
-      {filteredData.length === 0 ? (
+      {/* 按客户分组显示库存异常记录 */}
+      {Object.keys(groupedByCustomer).length === 0 ? (
         <div
           style={{
             textAlign: "center",
@@ -507,27 +436,43 @@ const InventoryExceptionManagement = () => {
           <Text type="secondary">没有符合条件的库存异常记录</Text>
         </div>
       ) : (
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #f0f0f0",
-            borderRadius: "2px",
-            padding: "16px",
-          }}
-        >
-          <Table
-            columns={columns}
-            dataSource={filteredData.map((item) => ({
-              ...item,
-              key: item._id,
-            }))}
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-            size="small"
-            scroll={{ x: 1200 }}
-            bordered
-          />
-        </div>
+        Object.entries(groupedByCustomer).map(([customerCode, records]) => (
+          <div
+            key={customerCode}
+            style={{
+              marginBottom: 24,
+              background: "#fff",
+              border: "1px solid #f0f0f0",
+              borderRadius: "2px",
+            }}
+          >
+            <div
+              style={{
+                padding: "10px 16px",
+                fontWeight: "bold",
+                fontSize: "16px",
+                borderBottom: "1px solid #f0f0f0",
+                backgroundColor: "#fafafa",
+              }}
+            >
+              客户代码: {customerCode} ({records.length}条记录)
+            </div>
+            <div style={{ padding: "16px" }}>
+              <Table
+                columns={columns}
+                dataSource={records.map((item) => ({
+                  ...item,
+                  key: item._id,
+                }))}
+                loading={loading}
+                pagination={records.length > 10 ? { pageSize: 10 } : false}
+                size="small"
+                scroll={{ x: 1200 }}
+                bordered
+              />
+            </div>
+          </div>
+        ))
       )}
 
       <InventoryExceptionForm
