@@ -1,4 +1,4 @@
-// src/components/ContainerForm.js
+// src/components/ContainerForm.js - 修改版
 import React, { useState, useEffect } from "react";
 import {
   Form,
@@ -75,8 +75,9 @@ const ContainerForm = ({
       form.setFieldsValue({
         日期: moment(),
         类型: "整柜",
-        状态: "待拆柜",
+        状态: "还未到仓库", // 修改默认状态为"还未到仓库"
         到达时间: "",
+        问题: "", // 默认问题为空，用户可填
       });
     }
   }, [visible, initialValues, form]);
@@ -145,6 +146,11 @@ const ContainerForm = ({
       } else {
         // 如果没有输入到达时间，设置为空字符串
         formattedValues.到达时间 = "";
+      }
+
+      // 确保问题字段不为空
+      if (!formattedValues.问题) {
+        formattedValues.问题 = "";
       }
 
       await onSubmit(formattedValues);
@@ -228,6 +234,7 @@ const ContainerForm = ({
           rules={[{ required: true, message: "请选择状态" }]}
         >
           <Select placeholder="选择状态">
+            <Option value="还未到仓库">还未到仓库</Option>
             <Option value="已完成">已完成</Option>
             <Option value="待拆柜">待拆柜</Option>
             <Option value="待核实">待核实</Option>
@@ -237,10 +244,18 @@ const ContainerForm = ({
 
         <Form.Item 
           name="问题" 
-          label="问题"
-          rules={[{ required: true, message: "请输入问题描述" }]}
+          label="问题/备注"
+          rules={[
+            // 移除必填验证，改为可选
+            { max: 500, message: "问题描述不能超过500字符" }
+          ]}
         >
-          <TextArea rows={3} placeholder="输入问题描述" />
+          <TextArea 
+            rows={3} 
+            placeholder="输入问题描述或备注信息（可选）" 
+            showCount
+            maxLength={500}
+          />
         </Form.Item>
 
         <Form.Item>

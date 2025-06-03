@@ -1,4 +1,4 @@
-// src/components/ContainerManagement.js - 修改为按工作周分组
+// src/components/ContainerManagement.js - 完整代码
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -104,9 +104,11 @@ const getTypeTag = (type) => {
   }
 };
 
-// 获取状态标签
+// 获取状态标签 - 添加新状态
 const getStatusTag = (status) => {
   switch (status) {
+    case "还未到仓库":
+      return <Tag color="default">{status}</Tag>;
     case "已完成":
       return <Tag color="success">{status}</Tag>;
     case "待拆柜":
@@ -438,14 +440,15 @@ const ContainerManagement = () => {
       dataIndex: "状态",
       key: "状态",
       render: (text) => getStatusTag(text),
-      width: 100,
+      width: 120,
     },
     {
-      title: "问题",
+      title: "问题/备注",
       dataIndex: "问题",
       key: "问题",
       ellipsis: true,
       width: 200,
+      render: (text) => text || "-", // 如果为空显示 "-"
     },
     {
       title: "操作",
@@ -540,9 +543,10 @@ const ContainerManagement = () => {
           <Select
             value={statusFilter}
             onChange={handleStatusFilterChange}
-            style={{ width: 120 }}
+            style={{ width: 140 }}
           >
             <Option value="all">全部</Option>
+            <Option value="还未到仓库">还未到仓库</Option>
             <Option value="已完成">已完成</Option>
             <Option value="待拆柜">待拆柜</Option>
             <Option value="待核实">待核实</Option>

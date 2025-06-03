@@ -1,4 +1,4 @@
-// server/models/Container.js
+// server/models/Container.js - 修改版
 const mongoose = require("mongoose");
 
 /**
@@ -8,8 +8,8 @@ const mongoose = require("mongoose");
  * - 类型: 限定为 '整柜', '散货', '托盘' 三种类型
  * - 客户代码: 客户的唯一标识码
  * - 到达时间: 到达时间（可选）
- * - 状态: 限定为 '已完成', '待拆柜', '待核实', '有问题' 四种状态
- * - 问题: 问题描述（必填）
+ * - 状态: 限定为 '还未到仓库', '已完成', '待拆柜', '待核实', '有问题' 五种状态
+ * - 问题: 问题描述或备注（可选）
  * - createdAt: 记录创建时间
  */
 const ContainerSchema = new mongoose.Schema({
@@ -68,17 +68,19 @@ const ContainerSchema = new mongoose.Schema({
   },
   到达时间: {
     type: String,
-    required: false, // 改为可选
+    required: false, // 可选
     default: "",
   },
   状态: {
     type: String,
     required: true,
-    enum: ["已完成", "待拆柜", "待核实", "有问题"],
+    enum: ["还未到仓库", "已完成", "待拆柜", "待核实", "有问题"], // 添加新状态
   },
   问题: {
     type: String,
-    required: true, // 改为必填
+    required: false, // 改为可选
+    default: "", // 默认为空字符串
+    maxlength: 500, // 限制最大长度
   },
   createdAt: {
     type: Date,
