@@ -1,4 +1,4 @@
-// src/components/InventoryExceptionManagement.js - 优化版
+// src/components/InventoryExceptionManagement.js - 支持多选筛选版本
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -9,7 +9,8 @@ import {
   Input,
   Select,
   Typography,
-  Divider,
+  Tag,
+  Tooltip,
 } from "antd";
 import {
   PlusOutlined,
@@ -19,6 +20,7 @@ import {
   FilterOutlined,
   SearchOutlined,
   DownloadOutlined,
+  ClearOutlined,
 } from "@ant-design/icons";
 import { useInventoryData } from "../hooks/useInventoryData";
 import InventoryExceptionForm from "./InventoryExceptionForm";
@@ -189,6 +191,55 @@ const QuickFilterButtons = ({
   );
 };
 
+// 筛选标签显示组件
+const FilterTags = ({ selectedCustomerCodes, selectedLocations, onRemoveCustomerCode, onRemoveLocation, onClearAll }) => {
+  const hasFilters = selectedCustomerCodes.length > 0 || selectedLocations.length > 0;
+  
+  if (!hasFilters) return null;
+
+  return (
+    <div style={{ marginBottom: 16, padding: "8px", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
+      <Space wrap>
+        <Text strong>当前筛选条件：</Text>
+        
+        {selectedCustomerCodes.map(code => (
+          <Tag
+            key={`customer-${code}`}
+            closable
+            onClose={() => onRemoveCustomerCode(code)}
+            color="blue"
+          >
+            客户: {code}
+          </Tag>
+        ))}
+        
+        {selectedLocations.map(location => (
+          <Tag
+            key={`location-${location}`}
+            closable
+            onClose={() => onRemoveLocation(location)}
+            color="green"
+          >
+            库位: {location}
+          </Tag>
+        ))}
+        
+        {hasFilters && (
+          <Button
+            type="link"
+            size="small"
+            icon={<ClearOutlined />}
+            onClick={onClearAll}
+            style={{ padding: 0 }}
+          >
+            清除所有筛选
+          </Button>
+        )}
+      </Space>
+    </div>
+  );
+};
+
 // Excel导出功能
 const exportToExcel = (data, filters) => {
   if (!data || data.length === 0) {
@@ -219,16 +270,8 @@ const exportToExcel = (data, filters) => {
 
   // 设置列宽
   ws["!cols"] = [
-    { wch: 6 }, // 序号
-    { wch: 12 }, // 日期
-    { wch: 12 }, // 客户代码
-    { wch: 20 }, // SKU
-    { wch: 30 }, // 产品名
-    { wch: 10 }, // 实际库存
-    { wch: 10 }, // 系统库存
-    { wch: 8 }, // 差异
-    { wch: 10 }, // 库位
-    { wch: 20 }, // 备注
+    { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 30 },
+    { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 20 },
   ];
 
   // 添加工作表
@@ -238,12 +281,11 @@ const exportToExcel = (data, filters) => {
   const now = moment().format("YYYY-MM-DD_HH-mm");
   let filename = `库存异常记录_${now}`;
 
-  // 根据筛选条件添加后缀
-  if (filters.customerCode && filters.customerCode !== "all") {
-    filename += `_${filters.customerCode}`;
+  if (filters.selectedCustomerCodes?.length > 0) {
+    filename += `_客户${filters.selectedCustomerCodes.length}个`;
   }
-  if (filters.location && filters.location !== "all") {
-    filename += `_${filters.location}`;
+  if (filters.selectedLocations?.length > 0) {
+    filename += `_库位${filters.selectedLocations.length}个`;
   }
 
   filename += ".xlsx";
@@ -269,8 +311,11 @@ const InventoryExceptionManagement = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [currentData, setCurrentData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [customerCodeFilter, setCustomerCodeFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
+  
+  // 修改为数组形式，支持多选
+  const [selectedCustomerCodes, setSelectedCustomerCodes] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  
   const [differenceFilter, setDifferenceFilter] = useState("all");
   const [searchText, setSearchText] = useState("");
   const [skuSearchText, setSkuSearchText] = useState("");
@@ -279,17 +324,13 @@ const InventoryExceptionManagement = () => {
 
   // 获取唯一的客户代码列表
   const getUniqueCustomerCodes = () => {
-    const codes = [...new Set(data.map((item) => item.客户代码))].filter(
-      Boolean
-    );
+    const codes = [...new Set(data.map((item) => item.客户代码))].filter(Boolean);
     return codes.sort();
   };
 
   // 获取唯一的库位列表
   const getUniqueLocations = () => {
-    const locations = [...new Set(data.map((item) => item.库位))].filter(
-      Boolean
-    );
+    const locations = [...new Set(data.map((item) => item.库位))].filter(Boolean);
     return locations.sort();
   };
 
@@ -309,17 +350,17 @@ const InventoryExceptionManagement = () => {
 
     let filteredResult = [...data];
 
-    // 客户代码筛选
-    if (customerCodeFilter !== "all") {
-      filteredResult = filteredResult.filter(
-        (item) => item.客户代码 === customerCodeFilter
+    // 客户代码筛选（多选）
+    if (selectedCustomerCodes.length > 0) {
+      filteredResult = filteredResult.filter((item) =>
+        selectedCustomerCodes.includes(item.客户代码)
       );
     }
 
-    // 库位筛选
-    if (locationFilter !== "all") {
-      filteredResult = filteredResult.filter(
-        (item) => item.库位 === locationFilter
+    // 库位筛选（多选）
+    if (selectedLocations.length > 0) {
+      filteredResult = filteredResult.filter((item) =>
+        selectedLocations.includes(item.库位)
       );
     }
 
@@ -398,12 +439,41 @@ const InventoryExceptionManagement = () => {
     setGroupedByCustomer(sortedGrouped);
   }, [
     data,
-    customerCodeFilter,
-    locationFilter,
+    selectedCustomerCodes,
+    selectedLocations,
     differenceFilter,
     searchText,
     skuSearchText,
   ]);
+
+  // 处理客户代码多选变化
+  const handleCustomerCodeChange = (values) => {
+    setSelectedCustomerCodes(values || []);
+  };
+
+  // 处理库位多选变化
+  const handleLocationChange = (values) => {
+    setSelectedLocations(values || []);
+  };
+
+  // 移除单个客户代码筛选
+  const handleRemoveCustomerCode = (codeToRemove) => {
+    setSelectedCustomerCodes(prev => prev.filter(code => code !== codeToRemove));
+  };
+
+  // 移除单个库位筛选
+  const handleRemoveLocation = (locationToRemove) => {
+    setSelectedLocations(prev => prev.filter(location => location !== locationToRemove));
+  };
+
+  // 清除所有筛选条件
+  const handleClearAllFilters = () => {
+    setSelectedCustomerCodes([]);
+    setSelectedLocations([]);
+    setDifferenceFilter("all");
+    setSearchText("");
+    setSkuSearchText("");
+  };
 
   const handleAddClick = () => {
     setCurrentData(null);
@@ -450,8 +520,8 @@ const InventoryExceptionManagement = () => {
 
   const handleExport = () => {
     exportToExcel(filteredData, {
-      customerCode: customerCodeFilter,
-      location: locationFilter,
+      selectedCustomerCodes,
+      selectedLocations,
       difference: differenceFilter,
       search: searchText,
       skuSearch: skuSearchText,
@@ -610,9 +680,18 @@ const InventoryExceptionManagement = () => {
         }}
       >
         <div>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-            刷新数据
-          </Button>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+              刷新数据
+            </Button>
+            <Button
+              icon={<ClearOutlined />}
+              onClick={handleClearAllFilters}
+              disabled={selectedCustomerCodes.length === 0 && selectedLocations.length === 0 && differenceFilter === 'all' && !searchText && !skuSearchText}
+            >
+              清除筛选
+            </Button>
+          </Space>
         </div>
         <div
           style={{
@@ -642,11 +721,18 @@ const InventoryExceptionManagement = () => {
             <FilterOutlined /> 客户代码:
           </span>
           <Select
-            value={customerCodeFilter}
-            onChange={setCustomerCodeFilter}
-            style={{ width: 120 }}
+            mode="multiple"
+            value={selectedCustomerCodes}
+            onChange={handleCustomerCodeChange}
+            placeholder="选择客户代码"
+            style={{ minWidth: 200, maxWidth: 300 }}
+            maxTagCount="responsive"
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              option.children.toLowerCase().includes(input.toLowerCase())
+            }
           >
-            <Option value="all">全部</Option>
             {getUniqueCustomerCodes().map((code) => (
               <Option key={code} value={code}>
                 {code}
@@ -657,11 +743,18 @@ const InventoryExceptionManagement = () => {
             <FilterOutlined /> 库位:
           </span>
           <Select
-            value={locationFilter}
-            onChange={setLocationFilter}
-            style={{ width: 100 }}
+            mode="multiple"
+            value={selectedLocations}
+            onChange={handleLocationChange}
+            placeholder="选择库位"
+            style={{ minWidth: 150, maxWidth: 250 }}
+            maxTagCount="responsive"
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              option.children.toLowerCase().includes(input.toLowerCase())
+            }
           >
-            <Option value="all">全部</Option>
             {getUniqueLocations().map((location) => (
               <Option key={location} value={location}>
                 {location}
@@ -670,6 +763,15 @@ const InventoryExceptionManagement = () => {
           </Select>
         </div>
       </div>
+
+      {/* 筛选标签显示 */}
+      <FilterTags
+        selectedCustomerCodes={selectedCustomerCodes}
+        selectedLocations={selectedLocations}
+        onRemoveCustomerCode={handleRemoveCustomerCode}
+        onRemoveLocation={handleRemoveLocation}
+        onClearAll={handleClearAllFilters}
+      />
 
       {/* 按客户分组显示库存异常记录 */}
       {Object.keys(groupedByCustomer).length === 0 ? (
