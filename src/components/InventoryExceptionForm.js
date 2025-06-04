@@ -27,7 +27,7 @@ const InventoryExceptionForm = ({
   // 修复日期解析函数
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
-    
+
     try {
       // 如果已经是moment对象，直接返回
       if (moment.isMoment(dateStr)) {
@@ -66,7 +66,7 @@ const InventoryExceptionForm = ({
 
       return null;
     } catch (error) {
-      console.error('日期解析错误:', error);
+      console.error("日期解析错误:", error);
       return null;
     }
   };
@@ -100,19 +100,19 @@ const InventoryExceptionForm = ({
 
     const handleKeyPress = (event) => {
       // Ctrl/Cmd + Enter 提交表单
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
         event.preventDefault();
         form.submit();
       }
       // Escape 取消
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
+    document.addEventListener("keydown", handleKeyPress);
+    return () => document.removeEventListener("keydown", handleKeyPress);
   }, [visible, form, onCancel]);
 
   const handleSubmit = async (values) => {
@@ -230,16 +230,10 @@ const InventoryExceptionForm = ({
           <TextArea rows={3} placeholder="输入备注信息（可选）" />
         </Form.Item>
 
-        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+        <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
           <Space>
-            <Button onClick={onCancel}>
-              取消 (Esc)
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={submitLoading}
-            >
+            <Button onClick={onCancel}>取消 (Esc)</Button>
+            <Button type="primary" htmlType="submit" loading={submitLoading}>
               提交 (Ctrl+Enter)
             </Button>
           </Space>
