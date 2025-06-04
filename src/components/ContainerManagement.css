@@ -1,0 +1,167 @@
+/* src/components/ContainerManagement.css */
+
+/* 不同状态的行背景色 */
+.row-has-issue {
+  background-color: #fff2f0 !important;
+}
+
+.row-completed {
+  background-color: #f6ffed !important;
+}
+
+.row-pending {
+  background-color: #fafafa !important;
+}
+
+/* 鼠标悬停时的颜色 */
+.ant-table-tbody > tr:hover.row-has-issue > td {
+  background-color: #ffccc7 !important;
+}
+
+.ant-table-tbody > tr:hover.row-completed > td {
+  background-color: #d9f7be !important;
+}
+
+.ant-table-tbody > tr:hover.row-pending > td {
+  background-color: #f0f0f0 !important;
+}
+
+/* 状态标签点击效果 */
+.quick-status-tag:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quick-status-tag {
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+/* 浮动按钮动画 */
+.floating-add-btn {
+  transition: all 0.3s ease;
+}
+
+.floating-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 快速筛选按钮样式 */
+.quick-filter-btn {
+  transition: all 0.2s ease;
+}
+
+.quick-filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 表格行双击提示 */
+.ant-table-tbody > tr {
+  transition: background-color 0.2s ease;
+}
+
+.ant-table-tbody > tr:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 工作周标题响应式 */
+.work-week-header {
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .work-week-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  .work-week-stats {
+    width: 100%;
+    justify-content: flex-start !important;
+  }
+}
+
+/* 快速筛选按钮在小屏幕上的布局 */
+@media (max-width: 576px) {
+  .quick-filter-buttons .ant-space-item {
+    margin-bottom: 4px;
+  }
+  
+  .floating-add-btn {
+    bottom: 16px !important;
+    right: 16px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 18px !important;
+  }
+}
+
+/* 表格行选中效果 */
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  background-color: #e6f7ff !important;
+}
+
+/* 状态统计标签样式 */
+.work-week-stats .ant-tag {
+  margin: 2px;
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+/* 快速筛选按钮组样式 */
+.quick-filter-buttons {
+  border-radius: 6px;
+  padding: 8px;
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.work-week-header,
+.quick-filter-buttons {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 加载状态优化 */
+.ant-table-loading .ant-table-tbody > tr > td {
+  background-color: #fafafa !important;
+}
+
+/* 表格边框优化 */
+.ant-table-bordered .ant-table-thead > tr > th,
+.ant-table-bordered .ant-table-tbody > tr > td {
+  border-color: #f0f0f0;
+}
+
+/* 标签组间距优化 */
+.ant-space-horizontal > .ant-space-item:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* 表单内快捷键提示样式 */
+.ant-modal-footer .ant-btn {
+  position: relative;
+}
+
+/* 搜索框优化 */
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}

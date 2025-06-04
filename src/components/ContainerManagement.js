@@ -1,4 +1,4 @@
-// src/components/ContainerManagement.js - 完整代码
+// src/components/ContainerManagement.js - 完整优化版
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -23,6 +23,7 @@ import { useContainerData } from "../hooks/useContainerData";
 import ContainerForm from "./ContainerForm";
 import ServerStatus from "./ServerStatus";
 import moment from "moment";
+import "./ContainerManagement.css";
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -32,7 +33,6 @@ const formatDisplayDate = (dateStr) => {
   if (!dateStr) return "";
 
   try {
-    // 处理ISO格式
     if (dateStr.includes("T")) {
       const date = new Date(dateStr);
       const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -41,13 +41,11 @@ const formatDisplayDate = (dateStr) => {
       return `${month}/${day}/${year}`;
     }
 
-    // 处理MM/DD/YYYY格式
     if (dateStr.includes("/")) {
       const parts = dateStr.split("/");
       if (parts.length === 3) {
-        return dateStr; // 已经是正确格式
+        return dateStr;
       } else if (parts.length === 2) {
-        // M/D格式，添加年份并标准化
         const month = parts[0].padStart(2, "0");
         const day = parts[1].padStart(2, "0");
         const year = new Date().getFullYear();
@@ -74,10 +72,8 @@ const parseDateForSort = (dateStr) => {
     if (dateStr.includes("/")) {
       const parts = dateStr.split("/");
       if (parts.length === 3) {
-        // MM/DD/YYYY
         return new Date(parts[2], parts[0] - 1, parts[1]);
       } else if (parts.length === 2) {
-        // M/D
         const currentYear = new Date().getFullYear();
         return new Date(currentYear, parts[0] - 1, parts[1]);
       }
@@ -104,28 +100,194 @@ const getTypeTag = (type) => {
   }
 };
 
-// 获取状态标签 - 添加新状态
-const getStatusTag = (status) => {
-  switch (status) {
-    case "还未到仓库":
-      return <Tag color="default">{status}</Tag>;
-    case "已完成":
-      return <Tag color="success">{status}</Tag>;
-    case "待拆柜":
-      return <Tag color="processing">{status}</Tag>;
-    case "待核实":
-      return <Tag color="warning">{status}</Tag>;
-    case "有问题":
-      return <Tag color="error">{status}</Tag>;
-    default:
-      return <Tag>{status}</Tag>;
-  }
+// 可点击切换的状态标签
+const QuickStatusTag = ({ status, record, onStatusChange }) => {
+  const statusFlow = {
+    还未到仓库: "待拆柜",
+    待拆柜: "已完成",
+    已完成: "还未到仓库",
+    有问题: "待拆柜",
+  };
+
+  const handleClick = async (e) => {
+    e.stopPropagation();
+    const nextStatus = statusFlow[status];
+    if (nextStatus) {
+      try {
+        await onStatusChange(record._id, { ...record, 状态: nextStatus });
+        message.success(`状态已更新为: ${nextStatus}`);
+      } catch (error) {
+        message.error("状态更新失败");
+      }
+    }
+  };
+
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case "还未到仓库":
+        return {
+          color: "default",
+          cursor: "pointer",
+          title: "点击切换到 '待拆柜'",
+        };
+      case "已完成":
+        return {
+          color: "success",
+          cursor: "pointer",
+          title: "点击切换到 '还未到仓库'",
+        };
+      case "待拆柜":
+        return {
+          color: "processing",
+          cursor: "pointer",
+          title: "点击切换到 '已完成'",
+        };
+      case "有问题":
+        return {
+          color: "error",
+          cursor: "pointer",
+          title: "点击切换到 '待拆柜'",
+        };
+      default:
+        return { color: "default", cursor: "default" };
+    }
+  };
+
+  const config = getStatusConfig(status);
+
+  return (
+    <Tag
+      {...config}
+      onClick={handleClick}
+      style={{ cursor: config.cursor }}
+      title={config.title}
+      className="quick-status-tag"
+    >
+      {status}
+    </Tag>
+  );
+};
+
+// 快速筛选按钮组
+const QuickFilterButtons = ({ data, statusFilter, onStatusFilterChange }) => {
+  const getStatusCount = (status) => {
+    if (status === "all") return data.length;
+    return data.filter((item) => item.状态 === status).length;
+  };
+
+  const filterButtons = [
+    { key: "all", label: "全部" },
+    { key: "还未到仓库", label: "还未到仓库" },
+    { key: "待拆柜", label: "待拆柜" },
+    { key: "已完成", label: "已完成" },
+    { key: "有问题", label: "有问题" },
+  ];
+
+  return (
+    <div style={{ marginBottom: 16 }} className="quick-filter-buttons">
+      <Space wrap>
+        {filterButtons.map((button) => {
+          const count = getStatusCount(button.key);
+          const isActive = statusFilter === button.key;
+
+          return (
+            <Button
+              key={button.key}
+              type={isActive ? "primary" : "default"}
+              size="small"
+              onClick={() => onStatusFilterChange(button.key)}
+              className="quick-filter-btn"
+            >
+              {button.label} ({count})
+            </Button>
+          );
+        })}
+      </Space>
+    </div>
+  );
+};
+
+// 工作周标题组件
+const WorkWeekHeader = ({ weekData }) => {
+  const statusCounts = {
+    还未到仓库: 0,
+    待拆柜: 0,
+    已完成: 0,
+    有问题: 0,
+  };
+
+  weekData.records.forEach((record) => {
+    if (statusCounts.hasOwnProperty(record.状态)) {
+      statusCounts[record.状态]++;
+    }
+  });
+
+  return (
+    <div
+      className="work-week-header"
+      style={{
+        padding: "10px 16px",
+        fontWeight: "bold",
+        fontSize: "16px",
+        borderBottom: "1px solid #f0f0f0",
+        backgroundColor: "#fafafa",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "8px",
+      }}
+    >
+      <span>
+        工作周: {weekData.workWeekRange} ({weekData.records.length}条记录)
+      </span>
+      <Space wrap className="work-week-stats">
+        {statusCounts["还未到仓库"] > 0 && (
+          <Tag color="default">还未到仓库: {statusCounts["还未到仓库"]}</Tag>
+        )}
+        {statusCounts["待拆柜"] > 0 && (
+          <Tag color="processing">待拆柜: {statusCounts["待拆柜"]}</Tag>
+        )}
+        {statusCounts["已完成"] > 0 && (
+          <Tag color="success">已完成: {statusCounts["已完成"]}</Tag>
+        )}
+        {statusCounts["有问题"] > 0 && (
+          <Tag color="error">有问题: {statusCounts["有问题"]}</Tag>
+        )}
+      </Space>
+    </div>
+  );
+};
+
+// 浮动添加按钮
+const FloatingAddButton = ({ onClick }) => {
+  return (
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      size="large"
+      shape="circle"
+      onClick={onClick}
+      className="floating-add-btn"
+      style={{
+        position: "fixed",
+        bottom: "24px",
+        right: "24px",
+        width: "56px",
+        height: "56px",
+        zIndex: 1000,
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+        fontSize: "20px",
+      }}
+      title="添加集装箱记录 (快捷键: N)"
+    />
+  );
 };
 
 // 检查是否有工作记录（用于判断周六是否工作）
 const hasWorkRecords = (data, date) => {
   const dateStr = moment(date).format("MM/DD/YYYY");
-  return data.some(record => {
+  return data.some((record) => {
     const recordDate = formatDisplayDate(record.日期);
     return recordDate === dateStr;
   });
@@ -134,33 +296,27 @@ const hasWorkRecords = (data, date) => {
 // 获取工作周范围字符串
 const getWorkWeekRange = (date, allData) => {
   const momentDate = moment(date);
-  const dayOfWeek = momentDate.day(); // 0=周日, 1=周一, ..., 6=周六
-  
+  const dayOfWeek = momentDate.day();
+
   let startOfWorkWeek, endOfWorkWeek;
-  
+
   if (dayOfWeek === 0) {
-    // 如果是周日，归到下一周
-    startOfWorkWeek = momentDate.clone().add(1, 'day'); // 下周一
-    endOfWorkWeek = startOfWorkWeek.clone().add(4, 'days'); // 下周五
+    startOfWorkWeek = momentDate.clone().add(1, "day");
+    endOfWorkWeek = startOfWorkWeek.clone().add(4, "days");
   } else {
-    // 找到当前工作周的周一
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    startOfWorkWeek = momentDate.clone().subtract(daysFromMonday, 'days');
-    
-    // 工作周结束默认是周五
-    endOfWorkWeek = startOfWorkWeek.clone().add(4, 'days');
-    
-    // 检查周六是否有工作记录
-    const saturday = startOfWorkWeek.clone().add(5, 'days');
+    startOfWorkWeek = momentDate.clone().subtract(daysFromMonday, "days");
+    endOfWorkWeek = startOfWorkWeek.clone().add(4, "days");
+
+    const saturday = startOfWorkWeek.clone().add(5, "days");
     if (hasWorkRecords(allData, saturday)) {
-      endOfWorkWeek = saturday; // 如果周六有工作，延长到周六
+      endOfWorkWeek = saturday;
     }
   }
-  
-  // 格式化显示
+
   const startStr = startOfWorkWeek.format("MM/DD");
   const endStr = endOfWorkWeek.format("MM/DD/YYYY");
-  
+
   return `${startStr} - ${endStr}`;
 };
 
@@ -168,21 +324,19 @@ const getWorkWeekRange = (date, allData) => {
 const getWorkWeekKey = (date, allData) => {
   const momentDate = moment(date);
   const dayOfWeek = momentDate.day();
-  
+
   let startOfWorkWeek;
-  
+
   if (dayOfWeek === 0) {
-    // 如果是周日，归到下一周
-    startOfWorkWeek = momentDate.clone().add(1, 'day');
+    startOfWorkWeek = momentDate.clone().add(1, "day");
   } else {
-    // 找到当前工作周的周一
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    startOfWorkWeek = momentDate.clone().subtract(daysFromMonday, 'days');
+    startOfWorkWeek = momentDate.clone().subtract(daysFromMonday, "days");
   }
-  
+
   const year = startOfWorkWeek.year();
   const week = startOfWorkWeek.week();
-  
+
   return `${year}-W${week.toString().padStart(2, "0")}`;
 };
 
@@ -190,17 +344,16 @@ const getWorkWeekKey = (date, allData) => {
 const belongsToWorkWeek = (recordDate, weekStartDate, allData) => {
   const record = moment(recordDate);
   const weekStart = moment(weekStartDate);
-  const weekEnd = weekStart.clone().add(4, 'days'); // 默认周五结束
-  
-  // 检查周六是否有工作记录
-  const saturday = weekStart.clone().add(5, 'days');
+  const weekEnd = weekStart.clone().add(4, "days");
+
+  const saturday = weekStart.clone().add(5, "days");
   const hasSaturdayWork = hasWorkRecords(allData, saturday);
-  
+
   if (hasSaturdayWork) {
-    weekEnd.add(1, 'day'); // 延长到周六
+    weekEnd.add(1, "day");
   }
-  
-  return record.isBetween(weekStart, weekEnd, 'day', '[]'); // 包含边界
+
+  return record.isBetween(weekStart, weekEnd, "day", "[]");
 };
 
 const ContainerManagement = () => {
@@ -219,11 +372,33 @@ const ContainerManagement = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [currentData, setCurrentData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all"); // 状态筛选
-  const [typeFilter, setTypeFilter] = useState("all"); // 类型筛选
-  const [searchText, setSearchText] = useState(""); // 搜索文本
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [searchText, setSearchText] = useState("");
   const [filteredData, setFilteredData] = useState([]);
-  const [groupedByWorkWeek, setGroupedByWorkWeek] = useState({}); // 按工作周分组的数据
+  const [groupedByWorkWeek, setGroupedByWorkWeek] = useState({});
+
+  // 快捷键支持
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      const isInInput = ["INPUT", "TEXTAREA", "SELECT"].includes(
+        event.target.tagName
+      );
+      const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
+
+      if (!isInInput && !hasModifier) {
+        switch (event.key.toLowerCase()) {
+          case "n":
+            event.preventDefault();
+            handleAddClick();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyPress);
+    return () => document.removeEventListener("keydown", handleKeyPress);
+  }, []);
 
   useEffect(() => {
     if (error) {
@@ -241,21 +416,18 @@ const ContainerManagement = () => {
 
     let filteredResult = [...data];
 
-    // 状态筛选
     if (statusFilter !== "all") {
       filteredResult = filteredResult.filter(
         (item) => item.状态 === statusFilter
       );
     }
 
-    // 类型筛选
     if (typeFilter !== "all") {
       filteredResult = filteredResult.filter(
         (item) => item.类型 === typeFilter
       );
     }
 
-    // 搜索文本筛选
     if (searchText) {
       const lowerSearchText = searchText.toLowerCase();
       filteredResult = filteredResult.filter(
@@ -269,61 +441,59 @@ const ContainerManagement = () => {
 
     setFilteredData(filteredResult);
 
-    // 按工作周分组
     const workWeekGroups = {};
-    
+
     filteredResult.forEach((item) => {
       const date = parseDateForSort(item.日期);
       if (date) {
         const workWeekKey = getWorkWeekKey(date, filteredResult);
-        
+
         if (!workWeekGroups[workWeekKey]) {
           workWeekGroups[workWeekKey] = {
             workWeekRange: getWorkWeekRange(date, filteredResult),
             records: [],
-            startDate: null
+            startDate: null,
           };
         }
-        
+
         workWeekGroups[workWeekKey].records.push(item);
-        
-        // 记录这个工作周的开始日期，用于后续判断
+
         if (!workWeekGroups[workWeekKey].startDate) {
           const momentDate = moment(date);
           const dayOfWeek = momentDate.day();
           let startOfWorkWeek;
-          
+
           if (dayOfWeek === 0) {
-            startOfWorkWeek = momentDate.clone().add(1, 'day');
+            startOfWorkWeek = momentDate.clone().add(1, "day");
           } else {
             const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-            startOfWorkWeek = momentDate.clone().subtract(daysFromMonday, 'days');
+            startOfWorkWeek = momentDate
+              .clone()
+              .subtract(daysFromMonday, "days");
           }
-          
+
           workWeekGroups[workWeekKey].startDate = startOfWorkWeek;
         }
       }
     });
 
-    // 重新检查每个记录是否真正属于其工作周（处理跨周边界情况）
     const finalGroups = {};
-    
-    Object.keys(workWeekGroups).forEach(weekKey => {
+
+    Object.keys(workWeekGroups).forEach((weekKey) => {
       const group = workWeekGroups[weekKey];
-      const validRecords = group.records.filter(record => {
+      const validRecords = group.records.filter((record) => {
         const recordDate = parseDateForSort(record.日期);
         return belongsToWorkWeek(recordDate, group.startDate, filteredResult);
       });
-      
+
       if (validRecords.length > 0) {
         finalGroups[weekKey] = {
           ...group,
-          records: validRecords
+          records: validRecords,
         };
       }
     });
 
-    // 对每个工作周内的记录按日期降序排序
     Object.keys(finalGroups).forEach((weekKey) => {
       finalGroups[weekKey].records.sort((a, b) => {
         const dateA = parseDateForSort(a.日期);
@@ -332,7 +502,6 @@ const ContainerManagement = () => {
       });
     });
 
-    // 按工作周降序排序（最新的工作周在前）
     const sortedWeeks = Object.keys(finalGroups).sort((a, b) => {
       return b.localeCompare(a);
     });
@@ -396,6 +565,14 @@ const ContainerManagement = () => {
     setTypeFilter(value);
   };
 
+  // 状态快速更新
+  const handleQuickStatusChange = async (id, updatedRecord) => {
+    const success = await updateData(id, updatedRecord);
+    if (!success) {
+      throw new Error("更新失败");
+    }
+  };
+
   // 表格列定义
   const columns = [
     {
@@ -439,7 +616,13 @@ const ContainerManagement = () => {
       title: "状态",
       dataIndex: "状态",
       key: "状态",
-      render: (text) => getStatusTag(text),
+      render: (text, record) => (
+        <QuickStatusTag
+          status={text}
+          record={record}
+          onStatusChange={handleQuickStatusChange}
+        />
+      ),
       width: 120,
     },
     {
@@ -448,7 +631,7 @@ const ContainerManagement = () => {
       key: "问题",
       ellipsis: true,
       width: 200,
-      render: (text) => text || "-", // 如果为空显示 "-"
+      render: (text) => text || "-",
     },
     {
       title: "操作",
@@ -484,6 +667,20 @@ const ContainerManagement = () => {
     },
   ];
 
+  // 获取行的样式类名
+  const getRowClassName = (record) => {
+    switch (record.状态) {
+      case "有问题":
+        return "row-has-issue";
+      case "已完成":
+        return "row-completed";
+      case "还未到仓库":
+        return "row-pending";
+      default:
+        return "";
+    }
+  };
+
   return (
     <div style={{ padding: "20px" }}>
       <ServerStatus status={serverStatus} onCheckStatus={checkStatus} />
@@ -506,6 +703,13 @@ const ContainerManagement = () => {
           添加集装箱记录
         </Button>
       </div>
+
+      {/* 快速筛选按钮组 */}
+      <QuickFilterButtons
+        data={filteredData}
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
+      />
 
       {/* 操作按钮和筛选器 */}
       <div
@@ -537,21 +741,6 @@ const ContainerManagement = () => {
             style={{ width: 200 }}
             allowClear
           />
-          <span>
-            <FilterOutlined /> 状态:{" "}
-          </span>
-          <Select
-            value={statusFilter}
-            onChange={handleStatusFilterChange}
-            style={{ width: 140 }}
-          >
-            <Option value="all">全部</Option>
-            <Option value="还未到仓库">还未到仓库</Option>
-            <Option value="已完成">已完成</Option>
-            <Option value="待拆柜">待拆柜</Option>
-            <Option value="待核实">待核实</Option>
-            <Option value="有问题">有问题</Option>
-          </Select>
           <span>
             <FilterOutlined /> 类型:{" "}
           </span>
@@ -592,17 +781,7 @@ const ContainerManagement = () => {
               borderRadius: "2px",
             }}
           >
-            <div
-              style={{
-                padding: "10px 16px",
-                fontWeight: "bold",
-                fontSize: "16px",
-                borderBottom: "1px solid #f0f0f0",
-                backgroundColor: "#fafafa",
-              }}
-            >
-              工作周: {weekData.workWeekRange} ({weekData.records.length}条记录)
-            </div>
+            <WorkWeekHeader weekData={weekData} />
             <div style={{ padding: "16px" }}>
               <Table
                 columns={columns}
@@ -617,11 +796,21 @@ const ContainerManagement = () => {
                 size="small"
                 scroll={{ x: 1000 }}
                 bordered
+                onRow={(record) => ({
+                  onDoubleClick: () => {
+                    handleEditClick(record);
+                  },
+                  style: { cursor: "pointer" },
+                })}
+                rowClassName={getRowClassName}
               />
             </div>
           </div>
         ))
       )}
+
+      {/* 浮动添加按钮 */}
+      <FloatingAddButton onClick={handleAddClick} />
 
       <ContainerForm
         visible={formVisible}

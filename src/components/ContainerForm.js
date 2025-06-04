@@ -1,4 +1,4 @@
-// src/components/ContainerForm.js - 修改版
+// src/components/ContainerForm.js - 优化版
 import React, { useState, useEffect } from "react";
 import {
   Form,
@@ -8,6 +8,8 @@ import {
   Select,
   message,
   Modal,
+  AutoComplete,
+  Space,
 } from "antd";
 import moment from "moment";
 
@@ -23,6 +25,43 @@ const ContainerForm = ({
 }) => {
   const [form] = Form.useForm();
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [customerCodeSuggestions, setCustomerCodeSuggestions] = useState([]);
+
+  // 从localStorage获取历史客户代码
+  const getHistoryCustomerCodes = () => {
+    try {
+      const history = JSON.parse(
+        localStorage.getItem("customerCodeHistory") || "[]"
+      );
+      return [...new Set(history)]; // 去重
+    } catch {
+      return [];
+    }
+  };
+
+  // 保存客户代码到历史记录
+  const saveCustomerCodeToHistory = (code) => {
+    if (!code) return;
+    try {
+      const history = getHistoryCustomerCodes();
+      const newHistory = [code, ...history.filter((c) => c !== code)].slice(
+        0,
+        20
+      ); // 保持最新20个
+      localStorage.setItem("customerCodeHistory", JSON.stringify(newHistory));
+    } catch (error) {
+      console.error("保存客户代码历史失败:", error);
+    }
+  };
+
+  // 客户代码搜索处理
+  const handleCustomerCodeSearch = (value) => {
+    const history = getHistoryCustomerCodes();
+    const filtered = history.filter((code) =>
+      code.toLowerCase().includes(value.toLowerCase())
+    );
+    setCustomerCodeSuggestions(filtered.map((code) => ({ value: code })));
+  };
 
   useEffect(() => {
     if (visible && initialValues) {
@@ -75,12 +114,43 @@ const ContainerForm = ({
       form.setFieldsValue({
         日期: moment(),
         类型: "整柜",
-        状态: "还未到仓库", // 修改默认状态为"还未到仓库"
+        状态: "还未到仓库",
         到达时间: "",
-        问题: "", // 默认问题为空，用户可填
+        问题: "",
       });
+
+      // 设置焦点到柜号输入框
+      setTimeout(() => {
+        const containerInput = document.querySelector(
+          'input[placeholder="输入柜号"]'
+        );
+        if (containerInput) {
+          containerInput.focus();
+        }
+      }, 100);
     }
   }, [visible, initialValues, form]);
+
+  // 快捷键支持
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleKeyPress = (event) => {
+      // Ctrl/Cmd + Enter 提交表单
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        form.submit();
+      }
+      // Escape 取消
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyPress);
+    return () => document.removeEventListener("keydown", handleKeyPress);
+  }, [visible, form, onCancel]);
 
   const handleSubmit = async (values) => {
     try {
@@ -122,7 +192,7 @@ const ContainerForm = ({
       // 格式化到达时间 - 确保是 HH:mm 格式（如果有输入的话）
       if (values.到达时间 && values.到达时间.trim() !== "") {
         const timeStr = values.到达时间.toString().trim();
-        
+
         // 如果用户输入的是简单格式如 "12" 或 "15"，自动补充 ":00"
         if (/^\d{1,2}$/.test(timeStr)) {
           const hour = parseInt(timeStr);
@@ -136,7 +206,9 @@ const ContainerForm = ({
           const hour = parseInt(parts[0]);
           const minute = parseInt(parts[1]);
           if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-            formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            formattedValues.到达时间 = `${hour
+              .toString()
+              .padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
           }
         }
         // 如果已经是正确格式，保持不变
@@ -152,6 +224,9 @@ const ContainerForm = ({
       if (!formattedValues.问题) {
         formattedValues.问题 = "";
       }
+
+      // 保存客户代码到历史记录
+      saveCustomerCodeToHistory(formattedValues.客户代码);
 
       await onSubmit(formattedValues);
       form.resetFields();
@@ -189,7 +264,17 @@ const ContainerForm = ({
           label="柜号"
           rules={[{ required: true, message: "请输入柜号" }]}
         >
-          <Input placeholder="输入柜号" />
+          <Input
+            placeholder="输入柜号"
+            onPressEnter={(e) => {
+              // Enter键跳转到下一个输入框
+              const nextInput =
+                e.target.parentElement.parentElement.nextElementSibling?.querySelector(
+                  "input"
+                );
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -209,7 +294,12 @@ const ContainerForm = ({
           label="客户代码"
           rules={[{ required: true, message: "请输入客户代码" }]}
         >
-          <Input placeholder="输入客户代码" />
+          <AutoComplete
+            options={customerCodeSuggestions}
+            onSearch={handleCustomerCodeSearch}
+            placeholder="输入客户代码"
+            filterOption={false}
+          />
         </Form.Item>
 
         <Form.Item
@@ -242,32 +332,26 @@ const ContainerForm = ({
           </Select>
         </Form.Item>
 
-        <Form.Item 
-          name="问题" 
+        <Form.Item
+          name="问题"
           label="问题/备注"
-          rules={[
-            // 移除必填验证，改为可选
-            { max: 500, message: "问题描述不能超过500字符" }
-          ]}
+          rules={[{ max: 500, message: "问题描述不能超过500字符" }]}
         >
-          <TextArea 
-            rows={3} 
-            placeholder="输入问题描述或备注信息（可选）" 
+          <TextArea
+            rows={3}
+            placeholder="输入问题描述或备注信息（可选）"
             showCount
             maxLength={500}
           />
         </Form.Item>
 
-        <Form.Item>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={submitLoading}
-            style={{ marginRight: 8 }}
-          >
-            提交
-          </Button>
-          <Button onClick={onCancel}>取消</Button>
+        <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+          <Space>
+            <Button onClick={onCancel}>取消 (Esc)</Button>
+            <Button type="primary" htmlType="submit" loading={submitLoading}>
+              提交 (Ctrl+Enter)
+            </Button>
+          </Space>
         </Form.Item>
       </Form>
     </Modal>

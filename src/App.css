@@ -252,3 +252,102 @@
     margin-bottom: 8px;
   }
 }
+
+/* 集装箱管理优化样式 - 添加到 src/App.css 末尾 */
+
+/* 不同状态的行背景色 */
+.row-has-issue {
+  background-color: #fff2f0 !important;
+}
+
+.row-completed {
+  background-color: #f6ffed !important;
+}
+
+.row-pending {
+  background-color: #fafafa !important;
+}
+
+/* 鼠标悬停时的颜色 */
+.ant-table-tbody > tr:hover.row-has-issue > td {
+  background-color: #ffccc7 !important;
+}
+
+.ant-table-tbody > tr:hover.row-completed > td {
+  background-color: #d9f7be !important;
+}
+
+.ant-table-tbody > tr:hover.row-pending > td {
+  background-color: #f0f0f0 !important;
+}
+
+/* 状态标签点击效果 */
+.quick-status-tag:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 浮动按钮样式 */
+.floating-add-btn {
+  transition: all 0.3s ease;
+}
+
+.floating-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 快速筛选按钮样式 */
+.quick-filter-btn {
+  transition: all 0.2s ease;
+}
+
+.quick-filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 快速筛选按钮组样式 */
+.quick-filter-buttons {
+  border-radius: 6px;
+  padding: 8px;
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .work-week-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .floating-add-btn {
+    bottom: 16px !important;
+    right: 16px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 18px !important;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.work-week-header,
+.quick-filter-buttons {
+  animation: fadeIn 0.3s ease-out;
+}
