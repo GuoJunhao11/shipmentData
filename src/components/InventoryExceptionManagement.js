@@ -1,4 +1,4 @@
-// src/components/InventoryExceptionManagement.js
+// src/components/InventoryExceptionManagement.js - 优化版
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -9,7 +9,6 @@ import {
   Input,
   Select,
   Typography,
-  Tag,
   Divider,
 } from "antd";
 import {
@@ -19,11 +18,13 @@ import {
   ReloadOutlined,
   FilterOutlined,
   SearchOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import { useInventoryData } from "../hooks/useInventoryData";
 import InventoryExceptionForm from "./InventoryExceptionForm";
 import ServerStatus from "./ServerStatus";
 import moment from "moment";
+import * as XLSX from "xlsx";
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -33,7 +34,6 @@ const formatDisplayDate = (dateStr) => {
   if (!dateStr) return "";
 
   try {
-    // 处理ISO格式
     if (dateStr.includes("T")) {
       const date = new Date(dateStr);
       const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -42,13 +42,11 @@ const formatDisplayDate = (dateStr) => {
       return `${month}/${day}/${year}`;
     }
 
-    // 处理MM/DD/YYYY格式
     if (dateStr.includes("/")) {
       const parts = dateStr.split("/");
       if (parts.length === 3) {
-        return dateStr; // 已经是正确格式
+        return dateStr;
       } else if (parts.length === 2) {
-        // M/D格式，添加年份并标准化
         const month = parts[0].padStart(2, "0");
         const day = parts[1].padStart(2, "0");
         const year = new Date().getFullYear();
@@ -75,10 +73,8 @@ const parseDateForSort = (dateStr) => {
     if (dateStr.includes("/")) {
       const parts = dateStr.split("/");
       if (parts.length === 3) {
-        // MM/DD/YYYY
         return new Date(parts[2], parts[0] - 1, parts[1]);
       } else if (parts.length === 2) {
-        // M/D
         const currentYear = new Date().getFullYear();
         return new Date(currentYear, parts[0] - 1, parts[1]);
       }
@@ -91,16 +87,116 @@ const parseDateForSort = (dateStr) => {
   }
 };
 
-// 获取差异状态标签
-const getDifferenceTag = (actual, system) => {
-  const difference = actual - system;
-  if (difference > 0) {
-    return <Tag color="success">盈余 +{difference}</Tag>;
-  } else if (difference < 0) {
-    return <Tag color="error">亏损 {difference}</Tag>;
-  } else {
-    return <Tag color="default">正常 0</Tag>;
+// 快速筛选按钮组
+const QuickFilterButtons = ({
+  data,
+  differenceFilter,
+  onDifferenceFilterChange,
+}) => {
+  const getDifferenceCount = (type) => {
+    if (type === "all") return data.length;
+    return data.filter((item) => {
+      const diff = item.实际库存 - item.系统库存;
+      switch (type) {
+        case "surplus":
+          return diff > 0;
+        case "shortage":
+          return diff < 0;
+        case "normal":
+          return diff === 0;
+        default:
+          return true;
+      }
+    }).length;
+  };
+
+  const filterButtons = [
+    { key: "all", label: "全部" },
+    { key: "surplus", label: "盈余" },
+    { key: "shortage", label: "亏损" },
+    { key: "normal", label: "正常" },
+  ];
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Space wrap>
+        {filterButtons.map((button) => {
+          const count = getDifferenceCount(button.key);
+          const isActive = differenceFilter === button.key;
+
+          return (
+            <Button
+              key={button.key}
+              type={isActive ? "primary" : "default"}
+              size="small"
+              onClick={() => onDifferenceFilterChange(button.key)}
+            >
+              {button.label} ({count})
+            </Button>
+          );
+        })}
+      </Space>
+    </div>
+  );
+};
+
+// Excel导出功能
+const exportToExcel = (data, filters) => {
+  if (!data || data.length === 0) {
+    message.warning("没有数据可导出");
+    return;
   }
+
+  // 准备Excel数据
+  const excelData = data.map((item, index) => ({
+    序号: index + 1,
+    日期: formatDisplayDate(item.日期),
+    客户代码: item.客户代码,
+    SKU: item.SKU,
+    产品名: item.产品名,
+    实际库存: item.实际库存,
+    系统库存: item.系统库存,
+    库位: item.库位,
+    备注: item.备注 || "",
+  }));
+
+  // 创建工作簿
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(excelData);
+
+  // 设置列宽
+  ws["!cols"] = [
+    { wch: 6 }, // 序号
+    { wch: 12 }, // 日期
+    { wch: 12 }, // 客户代码
+    { wch: 20 }, // SKU
+    { wch: 30 }, // 产品名
+    { wch: 10 }, // 实际库存
+    { wch: 10 }, // 系统库存
+    { wch: 10 }, // 库位
+    { wch: 20 }, // 备注
+  ];
+
+  // 添加工作表
+  XLSX.utils.book_append_sheet(wb, ws, "库存异常记录");
+
+  // 生成文件名
+  const now = moment().format("YYYY-MM-DD_HH-mm");
+  let filename = `库存异常记录_${now}`;
+
+  // 根据筛选条件添加后缀
+  if (filters.customerCode && filters.customerCode !== "all") {
+    filename += `_${filters.customerCode}`;
+  }
+  if (filters.location && filters.location !== "all") {
+    filename += `_${filters.location}`;
+  }
+
+  filename += ".xlsx";
+
+  // 导出文件
+  XLSX.writeFile(wb, filename);
+  message.success(`Excel文件已导出: ${filename}`);
 };
 
 const InventoryExceptionManagement = () => {
@@ -119,10 +215,29 @@ const InventoryExceptionManagement = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [currentData, setCurrentData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [timeRange, setTimeRange] = useState("all"); // 默认显示所有数据
-  const [searchText, setSearchText] = useState(""); // 搜索文本
+  const [customerCodeFilter, setCustomerCodeFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [differenceFilter, setDifferenceFilter] = useState("all");
+  const [searchText, setSearchText] = useState("");
+  const [skuSearchText, setSkuSearchText] = useState("");
   const [filteredData, setFilteredData] = useState([]);
-  const [groupedByCustomer, setGroupedByCustomer] = useState({}); // 按客户分组的数据
+  const [groupedByCustomer, setGroupedByCustomer] = useState({});
+
+  // 获取唯一的客户代码列表
+  const getUniqueCustomerCodes = () => {
+    const codes = [...new Set(data.map((item) => item.客户代码))].filter(
+      Boolean
+    );
+    return codes.sort();
+  };
+
+  // 获取唯一的库位列表
+  const getUniqueLocations = () => {
+    const locations = [...new Set(data.map((item) => item.库位))].filter(
+      Boolean
+    );
+    return locations.sort();
+  };
 
   useEffect(() => {
     if (error) {
@@ -130,7 +245,7 @@ const InventoryExceptionManagement = () => {
     }
   }, [error]);
 
-  // 根据时间范围和搜索文本筛选数据
+  // 根据筛选条件筛选数据
   useEffect(() => {
     if (!data || data.length === 0) {
       setFilteredData([]);
@@ -138,31 +253,37 @@ const InventoryExceptionManagement = () => {
       return;
     }
 
-    const currentDate = moment();
     let filteredResult = [...data];
 
-    // 时间范围筛选
-    switch (timeRange) {
-      case "week":
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 7;
-        });
-        break;
-      case "month":
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 30;
-        });
-        break;
-      case "quarter":
-        filteredResult = data.filter((item) => {
-          const itemDate = parseDateForSort(item.日期);
-          return itemDate && currentDate.diff(moment(itemDate), "days") < 90;
-        });
-        break;
-      default:
-        filteredResult = [...data];
+    // 客户代码筛选
+    if (customerCodeFilter !== "all") {
+      filteredResult = filteredResult.filter(
+        (item) => item.客户代码 === customerCodeFilter
+      );
+    }
+
+    // 库位筛选
+    if (locationFilter !== "all") {
+      filteredResult = filteredResult.filter(
+        (item) => item.库位 === locationFilter
+      );
+    }
+
+    // 差异类型筛选
+    if (differenceFilter !== "all") {
+      filteredResult = filteredResult.filter((item) => {
+        const diff = item.实际库存 - item.系统库存;
+        switch (differenceFilter) {
+          case "surplus":
+            return diff > 0;
+          case "shortage":
+            return diff < 0;
+          case "normal":
+            return diff === 0;
+          default:
+            return true;
+        }
+      });
     }
 
     // 搜索文本筛选
@@ -170,14 +291,26 @@ const InventoryExceptionManagement = () => {
       const lowerSearchText = searchText.toLowerCase();
       filteredResult = filteredResult.filter(
         (item) =>
-          (item.客户代码 &&
-            item.客户代码.toLowerCase().includes(lowerSearchText)) ||
-          (item.SKU && item.SKU.toLowerCase().includes(lowerSearchText)) ||
           (item.产品名 &&
             item.产品名.toLowerCase().includes(lowerSearchText)) ||
-          (item.库位 && item.库位.toLowerCase().includes(lowerSearchText)) ||
           (item.备注 && item.备注.toLowerCase().includes(lowerSearchText))
       );
+    }
+
+    // SKU搜索筛选
+    if (skuSearchText) {
+      const lowerSkuSearch = skuSearchText.toLowerCase();
+      const skuList = lowerSkuSearch
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s);
+      if (skuList.length > 0) {
+        filteredResult = filteredResult.filter(
+          (item) =>
+            item.SKU &&
+            skuList.some((sku) => item.SKU.toLowerCase().includes(sku))
+        );
+      }
     }
 
     setFilteredData(filteredResult);
@@ -209,7 +342,14 @@ const InventoryExceptionManagement = () => {
     });
 
     setGroupedByCustomer(sortedGrouped);
-  }, [data, timeRange, searchText]);
+  }, [
+    data,
+    customerCodeFilter,
+    locationFilter,
+    differenceFilter,
+    searchText,
+    skuSearchText,
+  ]);
 
   const handleAddClick = () => {
     setCurrentData(null);
@@ -254,8 +394,14 @@ const InventoryExceptionManagement = () => {
     fetchData();
   };
 
-  const handleTimeRangeChange = (value) => {
-    setTimeRange(value);
+  const handleExport = () => {
+    exportToExcel(filteredData, {
+      customerCode: customerCodeFilter,
+      location: locationFilter,
+      difference: differenceFilter,
+      search: searchText,
+      skuSearch: skuSearchText,
+    });
   };
 
   // 表格列定义
@@ -300,13 +446,6 @@ const InventoryExceptionManagement = () => {
       sorter: (a, b) => a.系统库存 - b.系统库存,
     },
     {
-      title: "差异",
-      key: "差异",
-      width: 120,
-      render: (_, record) => getDifferenceTag(record.实际库存, record.系统库存),
-      sorter: (a, b) => a.实际库存 - a.系统库存 - (b.实际库存 - b.系统库存),
-    },
-    {
       title: "库位",
       dataIndex: "库位",
       key: "库位",
@@ -318,6 +457,7 @@ const InventoryExceptionManagement = () => {
       key: "备注",
       ellipsis: true,
       width: 150,
+      render: (text) => text || "-",
     },
     {
       title: "操作",
@@ -371,10 +511,31 @@ const InventoryExceptionManagement = () => {
         <Title level={4} style={{ margin: 0 }}>
           库存异常记录管理
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>
-          添加库存异常记录
-        </Button>
+        <Space>
+          <Button
+            type="default"
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            disabled={filteredData.length === 0}
+          >
+            导出Excel ({filteredData.length}条)
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddClick}
+          >
+            添加库存异常记录
+          </Button>
+        </Space>
       </div>
+
+      {/* 快速筛选按钮组 */}
+      <QuickFilterButtons
+        data={data}
+        differenceFilter={differenceFilter}
+        onDifferenceFilterChange={setDifferenceFilter}
+      />
 
       {/* 操作按钮和筛选器 */}
       <div
@@ -383,6 +544,7 @@ const InventoryExceptionManagement = () => {
           display: "flex",
           justifyContent: "space-between",
           flexWrap: "wrap",
+          gap: "8px",
         }}
       >
         <div>
@@ -399,25 +561,50 @@ const InventoryExceptionManagement = () => {
           }}
         >
           <Input
-            placeholder="搜索客户代码/SKU/产品名/库位"
+            placeholder="搜索产品名/备注"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
+            style={{ width: 150 }}
+            allowClear
+          />
+          <Input
+            placeholder="搜索SKU(多个用逗号分隔)"
+            prefix={<SearchOutlined />}
+            value={skuSearchText}
+            onChange={(e) => setSkuSearchText(e.target.value)}
+            style={{ width: 200 }}
             allowClear
           />
           <span>
-            <FilterOutlined /> 时间范围:{" "}
+            <FilterOutlined /> 客户代码:
           </span>
           <Select
-            value={timeRange}
-            onChange={handleTimeRangeChange}
+            value={customerCodeFilter}
+            onChange={setCustomerCodeFilter}
             style={{ width: 120 }}
           >
             <Option value="all">全部</Option>
-            <Option value="week">一周</Option>
-            <Option value="month">一个月</Option>
-            <Option value="quarter">三个月</Option>
+            {getUniqueCustomerCodes().map((code) => (
+              <Option key={code} value={code}>
+                {code}
+              </Option>
+            ))}
+          </Select>
+          <span>
+            <FilterOutlined /> 库位:
+          </span>
+          <Select
+            value={locationFilter}
+            onChange={setLocationFilter}
+            style={{ width: 100 }}
+          >
+            <Option value="all">全部</Option>
+            {getUniqueLocations().map((location) => (
+              <Option key={location} value={location}>
+                {location}
+              </Option>
+            ))}
           </Select>
         </div>
       </div>
@@ -469,6 +656,12 @@ const InventoryExceptionManagement = () => {
                 size="small"
                 scroll={{ x: 1200 }}
                 bordered
+                onRow={(record) => ({
+                  onDoubleClick: () => {
+                    handleEditClick(record);
+                  },
+                  style: { cursor: "pointer" },
+                })}
               />
             </div>
           </div>
