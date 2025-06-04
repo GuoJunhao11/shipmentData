@@ -148,17 +148,21 @@ const exportToExcel = (data, filters) => {
   }
 
   // 准备Excel数据
-  const excelData = data.map((item, index) => ({
-    序号: index + 1,
-    日期: formatDisplayDate(item.日期),
-    客户代码: item.客户代码,
-    SKU: item.SKU,
-    产品名: item.产品名,
-    实际库存: item.实际库存,
-    系统库存: item.系统库存,
-    库位: item.库位,
-    备注: item.备注 || "",
-  }));
+  const excelData = data.map((item, index) => {
+    const difference = item.实际库存 - item.系统库存;
+    return {
+      序号: index + 1,
+      日期: formatDisplayDate(item.日期),
+      客户代码: item.客户代码,
+      SKU: item.SKU,
+      产品名: item.产品名,
+      实际库存: item.实际库存,
+      系统库存: item.系统库存,
+      差异: difference > 0 ? `+${difference}` : difference,
+      库位: item.库位,
+      备注: item.备注 || "",
+    };
+  });
 
   // 创建工作簿
   const wb = XLSX.utils.book_new();
@@ -173,6 +177,7 @@ const exportToExcel = (data, filters) => {
     { wch: 30 }, // 产品名
     { wch: 10 }, // 实际库存
     { wch: 10 }, // 系统库存
+    { wch: 8 }, // 差异
     { wch: 10 }, // 库位
     { wch: 20 }, // 备注
   ];
@@ -446,6 +451,14 @@ const InventoryExceptionManagement = () => {
       sorter: (a, b) => a.系统库存 - b.系统库存,
     },
     {
+      title: "差异",
+      key: "差异",
+      width: 80,
+      render: (_, record) =>
+        getDifferenceDisplay(record.实际库存, record.系统库存),
+      sorter: (a, b) => a.实际库存 - a.系统库存 - (b.实际库存 - b.系统库存),
+    },
+    {
       title: "库位",
       dataIndex: "库位",
       key: "库位",
@@ -654,7 +667,7 @@ const InventoryExceptionManagement = () => {
                 loading={loading}
                 pagination={records.length > 10 ? { pageSize: 10 } : false}
                 size="small"
-                scroll={{ x: 1200 }}
+                scroll={{ x: 1300 }}
                 bordered
                 onRow={(record) => ({
                   onDoubleClick: () => {
