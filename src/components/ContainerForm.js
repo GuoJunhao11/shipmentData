@@ -1,4 +1,4 @@
-// src/components/ContainerForm.js - 优化版
+// src/components/ContainerForm.js - 修复日期问题版本
 import React, { useState, useEffect } from "react";
 import {
   Form,
@@ -63,56 +63,75 @@ const ContainerForm = ({
     setCustomerCodeSuggestions(filtered.map((code) => ({ value: code })));
   };
 
+  // 修复日期解析函数
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+
+    try {
+      // 如果已经是moment对象，直接返回
+      if (moment.isMoment(dateStr)) {
+        return dateStr.isValid() ? dateStr : null;
+      }
+
+      // 处理字符串格式
+      if (typeof dateStr === "string") {
+        // 处理ISO格式
+        if (dateStr.includes("T")) {
+          return moment(dateStr);
+        }
+
+        // 处理 MM/DD/YYYY 格式
+        if (dateStr.includes("/")) {
+          const parts = dateStr.split("/");
+          if (parts.length === 3) {
+            // MM/DD/YYYY 格式 - 重要：moment构造函数需要正确的参数顺序
+            const month = parseInt(parts[0], 10) - 1; // moment的月份是0-11
+            const day = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            return moment([year, month, day]);
+          } else if (parts.length === 2) {
+            // M/D 格式，添加当前年份
+            const month = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            const year = moment().year();
+            return moment([year, month, day]);
+          }
+        }
+
+        // 尝试直接解析
+        const parsed = moment(dateStr);
+        return parsed.isValid() ? parsed : null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("日期解析错误:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (visible && initialValues) {
       // 如果有初始值，格式化日期
       const formattedValues = { ...initialValues };
 
-      // 处理日期字段，转换为moment对象
-      if (initialValues.日期 && typeof initialValues.日期 === "string") {
-        let dateMoment = null;
-
-        // 处理 MM/DD/YYYY 格式
-        if (initialValues.日期.includes("/")) {
-          const parts = initialValues.日期.split("/");
-          if (parts.length === 3) {
-            // MM/DD/YYYY 格式
-            dateMoment = moment(
-              `${parts[2]}-${parts[0]}-${parts[1]}`,
-              "YYYY-MM-DD"
-            );
-          } else if (parts.length === 2) {
-            // M/D 格式，添加当前年份
-            const currentYear = moment().year();
-            dateMoment = moment(
-              `${currentYear}-${parts[0]}-${parts[1]}`,
-              "YYYY-MM-DD"
-            );
-          }
-        }
-        // 处理ISO格式
-        else if (initialValues.日期.includes("T")) {
-          dateMoment = moment(initialValues.日期);
-        }
-
-        if (dateMoment && dateMoment.isValid()) {
-          formattedValues.日期 = dateMoment;
-        } else {
-          formattedValues.日期 = null;
-        }
+      // 处理日期字段
+      if (initialValues.日期) {
+        const dateMoment = parseDate(initialValues.日期);
+        formattedValues.日期 = dateMoment;
       } else {
         formattedValues.日期 = null;
       }
 
-      // 到达时间保持字符串格式，不需要转换为moment
+      // 到达时间保持字符串格式
       formattedValues.到达时间 = initialValues.到达时间 || "";
 
       form.setFieldsValue(formattedValues);
     } else if (visible) {
       form.resetFields();
-      // 设置默认值
+      // 设置默认值 - 确保日期是有效的moment对象
       form.setFieldsValue({
-        日期: moment(),
+        日期: moment(), // 使用当前日期的moment对象
         类型: "整柜",
         状态: "还未到仓库",
         到达时间: "",
@@ -164,44 +183,27 @@ const ContainerForm = ({
         if (moment.isMoment(values.日期) && values.日期.isValid()) {
           formattedValues.日期 = values.日期.format("MM/DD/YYYY");
         }
-        // 处理字符串格式
-        else if (typeof values.日期 === "string") {
-          // 如果已经是 MM/DD/YYYY 格式
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(values.日期)) {
-            formattedValues.日期 = values.日期;
-          }
-          // ISO格式转换
-          else if (values.日期.includes("T")) {
-            const date = new Date(values.日期);
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            formattedValues.日期 = `${month}/${day}/${date.getFullYear()}`;
-          }
-          // 简单 M/D 格式
-          else if (values.日期.includes("/")) {
-            const parts = values.日期.split("/");
-            if (parts.length === 2) {
-              const month = String(parseInt(parts[0])).padStart(2, "0");
-              const day = String(parseInt(parts[1])).padStart(2, "0");
-              formattedValues.日期 = `${month}/${day}/${new Date().getFullYear()}`;
-            }
+        // 处理其他格式
+        else {
+          const dateMoment = parseDate(values.日期);
+          if (dateMoment && dateMoment.isValid()) {
+            formattedValues.日期 = dateMoment.format("MM/DD/YYYY");
+          } else {
+            throw new Error("无效的日期格式");
           }
         }
       }
 
-      // 格式化到达时间 - 确保是 HH:mm 格式（如果有输入的话）
+      // 格式化到达时间
       if (values.到达时间 && values.到达时间.trim() !== "") {
         const timeStr = values.到达时间.toString().trim();
 
-        // 如果用户输入的是简单格式如 "12" 或 "15"，自动补充 ":00"
         if (/^\d{1,2}$/.test(timeStr)) {
           const hour = parseInt(timeStr);
           if (hour >= 0 && hour <= 23) {
             formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:00`;
           }
-        }
-        // 如果用户输入的是 "12:30" 或 "15:45" 格式
-        else if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+        } else if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
           const parts = timeStr.split(":");
           const hour = parseInt(parts[0]);
           const minute = parseInt(parts[1]);
@@ -210,13 +212,10 @@ const ContainerForm = ({
               .toString()
               .padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
           }
-        }
-        // 如果已经是正确格式，保持不变
-        else if (/^\d{2}:\d{2}$/.test(timeStr)) {
+        } else if (/^\d{2}:\d{2}$/.test(timeStr)) {
           formattedValues.到达时间 = timeStr;
         }
       } else {
-        // 如果没有输入到达时间，设置为空字符串
         formattedValues.到达时间 = "";
       }
 
@@ -256,6 +255,7 @@ const ContainerForm = ({
             format="MM/DD/YYYY"
             placeholder="选择日期"
             style={{ width: "100%" }}
+            allowClear={false}
           />
         </Form.Item>
 
