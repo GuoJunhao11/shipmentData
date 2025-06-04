@@ -1,14 +1,13 @@
+// src/components/ExpressDataForm.js - 修改为手动日期输入版本
 import React, { useState, useEffect } from "react";
 import {
   Form,
   Input,
   Button,
-  DatePicker,
   InputNumber,
   message,
   Modal,
 } from "antd";
-import moment from "moment";
 
 const ExpressDataForm = ({
   initialValues,
@@ -20,52 +19,140 @@ const ExpressDataForm = ({
   const [form] = Form.useForm();
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // 日期格式验证函数
+  const validateDateFormat = (_, value) => {
+    if (!value) {
+      return Promise.reject(new Error("请输入日期"));
+    }
+
+    // 检查基本格式 MM/DD 或 MM/DD/YYYY
+    const datePattern = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/;
+    const match = value.match(datePattern);
+
+    if (!match) {
+      return Promise.reject(new Error("日期格式不正确，请使用 MM/DD 或 MM/DD/YYYY 格式"));
+    }
+
+    const month = parseInt(match[1], 10);
+    const day = parseInt(match[2], 10);
+    const year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+
+    // 验证月份
+    if (month < 1 || month > 12) {
+      return Promise.reject(new Error("月份必须在 1-12 之间"));
+    }
+
+    // 验证日期
+    if (day < 1 || day > 31) {
+      return Promise.reject(new Error("日期必须在 1-31 之间"));
+    }
+
+    // 验证年份（如果提供）
+    if (match[3] && (year < 2020 || year > 2030)) {
+      return Promise.reject(new Error("年份必须在 2020-2030 之间"));
+    }
+
+    // 验证日期是否有效（例如2月不能有30号）
+    const testDate = new Date(year, month - 1, day);
+    if (testDate.getMonth() !== month - 1 || testDate.getDate() !== day) {
+      return Promise.reject(new Error("输入的日期无效"));
+    }
+
+    return Promise.resolve();
+  };
+
+  // 格式化日期字符串
+  const formatDateString = (dateStr) => {
+    if (!dateStr) return "";
+
+    try {
+      // 处理 MM/DD/YYYY 格式
+      if (dateStr.includes("/")) {
+        const parts = dateStr.split("/");
+        if (parts.length === 2) {
+          // MM/DD 格式，添加当前年份
+          const month = parts[0].padStart(2, "0");
+          const day = parts[1].padStart(2, "0");
+          const year = new Date().getFullYear();
+          return `${month}/${day}/${year}`;
+        } else if (parts.length === 3) {
+          // MM/DD/YYYY 格式，标准化
+          const month = parts[0].padStart(2, "0");
+          const day = parts[1].padStart(2, "0");
+          const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+          return `${month}/${day}/${year}`;
+        }
+      }
+
+      // 处理ISO格式
+      if (dateStr.includes("T")) {
+        const date = new Date(dateStr);
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const day = date.getDate().toString().padStart(2, "0");
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      }
+
+      return dateStr;
+    } catch (e) {
+      console.error("日期格式化错误:", e);
+      return dateStr;
+    }
+  };
+
   useEffect(() => {
     if (visible && initialValues) {
       // 如果有初始值，格式化日期
       const formattedValues = { ...initialValues };
 
-      // 处理日期字段，转换为moment对象
-      if (initialValues.日期 && typeof initialValues.日期 === "string") {
-        let dateMoment = null;
-
-        // 处理 MM/DD/YYYY 格式
-        if (initialValues.日期.includes("/")) {
-          const parts = initialValues.日期.split("/");
-          if (parts.length === 3) {
-            // MM/DD/YYYY 格式
-            dateMoment = moment(
-              `${parts[2]}-${parts[0]}-${parts[1]}`,
-              "YYYY-MM-DD"
-            );
-          } else if (parts.length === 2) {
-            // M/D 格式，添加当前年份
-            const currentYear = moment().year();
-            dateMoment = moment(
-              `${currentYear}-${parts[0]}-${parts[1]}`,
-              "YYYY-MM-DD"
-            );
-          }
-        }
-        // 处理ISO格式
-        else if (initialValues.日期.includes("T")) {
-          dateMoment = moment(initialValues.日期);
-        }
-
-        if (dateMoment && dateMoment.isValid()) {
-          formattedValues.日期 = dateMoment;
-        } else {
-          formattedValues.日期 = null;
-        }
-      } else {
-        formattedValues.日期 = null;
+      // 格式化日期字段
+      if (initialValues.日期) {
+        formattedValues.日期 = formatDateString(initialValues.日期);
       }
 
       form.setFieldsValue(formattedValues);
     } else if (visible) {
       form.resetFields();
+      
+      // 设置默认值 - 当前日期
+      const today = new Date();
+      const currentDate = `${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getDate().toString().padStart(2, "0")}/${today.getFullYear()}`;
+      
+      form.setFieldsValue({
+        日期: currentDate,
+      });
+
+      // 设置焦点到日期输入框
+      setTimeout(() => {
+        const dateInput = document.querySelector('input[placeholder*="MM/DD"]');
+        if (dateInput) {
+          dateInput.focus();
+          dateInput.select(); // 选中默认日期，方便用户直接输入
+        }
+      }, 100);
     }
   }, [visible, initialValues, form]);
+
+  // 快捷键支持
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleKeyPress = (event) => {
+      // Ctrl/Cmd + Enter 提交表单
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        form.submit();
+      }
+      // Escape 取消
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyPress);
+    return () => document.removeEventListener("keydown", handleKeyPress);
+  }, [visible, form, onCancel]);
 
   const handleSubmit = async (values) => {
     try {
@@ -75,33 +162,7 @@ const ExpressDataForm = ({
       let formattedValues = { ...values };
 
       if (values.日期) {
-        // 处理moment对象
-        if (moment.isMoment(values.日期) && values.日期.isValid()) {
-          formattedValues.日期 = values.日期.format("MM/DD/YYYY");
-        }
-        // 处理字符串格式
-        else if (typeof values.日期 === "string") {
-          // 如果已经是 MM/DD/YYYY 格式
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(values.日期)) {
-            formattedValues.日期 = values.日期;
-          }
-          // ISO格式转换
-          else if (values.日期.includes("T")) {
-            const date = new Date(values.日期);
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            formattedValues.日期 = `${month}/${day}/${date.getFullYear()}`;
-          }
-          // 简单 M/D 格式
-          else if (values.日期.includes("/")) {
-            const parts = values.日期.split("/");
-            if (parts.length === 2) {
-              const month = String(parseInt(parts[0])).padStart(2, "0");
-              const day = String(parseInt(parts[1])).padStart(2, "0");
-              formattedValues.日期 = `${month}/${day}/${new Date().getFullYear()}`;
-            }
-          }
-        }
+        formattedValues.日期 = formatDateString(values.日期);
       }
 
       await onSubmit(formattedValues);
@@ -126,12 +187,20 @@ const ExpressDataForm = ({
         <Form.Item
           name="日期"
           label="日期"
-          rules={[{ required: true, message: "请选择日期" }]}
+          rules={[
+            { required: true, message: "请输入日期" },
+            { validator: validateDateFormat }
+          ]}
+          extra="格式：MM/DD 或 MM/DD/YYYY (例如：12/25 或 12/25/2024)"
         >
-          <DatePicker
-            format="MM/DD/YYYY"
-            placeholder="选择日期"
+          <Input
+            placeholder="请输入日期，如：12/25 或 12/25/2024"
             style={{ width: "100%" }}
+            onPressEnter={(e) => {
+              // Enter键跳转到下一个输入框
+              const nextInput = document.querySelector('input[placeholder*="易仓系统总量"]');
+              if (nextInput) nextInput.focus();
+            }}
           />
         </Form.Item>
 
@@ -140,7 +209,15 @@ const ExpressDataForm = ({
           label="易仓系统总量"
           rules={[{ required: true, message: "请输入易仓系统总量" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入易仓系统总量"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="新系统总量"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -148,7 +225,15 @@ const ExpressDataForm = ({
           label="新系统总量"
           rules={[{ required: true, message: "请输入新系统总量" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入新系统总量"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="FedEx总数量"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -156,7 +241,15 @@ const ExpressDataForm = ({
           label="FedEx总数量"
           rules={[{ required: true, message: "请输入FedEx总数量" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入FedEx总数量"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="UPS总数量"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -164,7 +257,15 @@ const ExpressDataForm = ({
           label="UPS总数量"
           rules={[{ required: true, message: "请输入UPS总数量" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入UPS总数量"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="FedEx中A008订单数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -172,7 +273,15 @@ const ExpressDataForm = ({
           label="FedEx中A008订单数"
           rules={[{ required: true, message: "请输入FedEx中A008订单数" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入FedEx中A008订单数"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="UPS中A008订单数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -180,7 +289,15 @@ const ExpressDataForm = ({
           label="UPS中A008订单数"
           rules={[{ required: true, message: "请输入UPS中A008订单数" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入UPS中A008订单数"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="电池板数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -188,7 +305,15 @@ const ExpressDataForm = ({
           label="电池板数"
           rules={[{ required: true, message: "请输入电池板数" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入电池板数"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="FedEx含库板数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -196,7 +321,15 @@ const ExpressDataForm = ({
           label="FedEx含库板数"
           rules={[{ required: true, message: "请输入FedEx含库板数" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入FedEx含库板数"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="UPS含库板数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -204,15 +337,30 @@ const ExpressDataForm = ({
           label="UPS含库板数"
           rules={[{ required: true, message: "请输入UPS含库板数" }]}
         >
-          <InputNumber min={0} style={{ width: "100%" }} />
+          <InputNumber 
+            min={0} 
+            style={{ width: "100%" }} 
+            placeholder="输入UPS含库板数"
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="完成时间"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
           name="完成时间"
           label="完成时间"
           rules={[{ required: true, message: "请输入完成时间" }]}
+          extra="格式：HH:mm (例如：14:30)"
         >
-          <Input placeholder="例如: 14:30" />
+          <Input 
+            placeholder="输入完成时间，例如: 14:30" 
+            onPressEnter={(e) => {
+              const nextInput = document.querySelector('input[placeholder*="处理人数"]');
+              if (nextInput) nextInput.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -220,23 +368,40 @@ const ExpressDataForm = ({
           label="人数"
           rules={[{ required: true, message: "请输入处理人数" }]}
         >
-          <InputNumber min={1} style={{ width: "100%" }} />
+          <InputNumber 
+            min={1} 
+            style={{ width: "100%" }} 
+            placeholder="输入处理人数"
+            onPressEnter={(e) => {
+              const nextTextarea = document.querySelector('textarea[placeholder*="备注"]');
+              if (nextTextarea) nextTextarea.focus();
+            }}
+          />
         </Form.Item>
 
         <Form.Item name="备注" label="备注">
-          <Input.TextArea rows={3} placeholder="输入备注信息（可选）" />
+          <Input.TextArea 
+            rows={3} 
+            placeholder="输入备注信息（可选）" 
+            onPressEnter={(e) => {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                form.submit();
+              }
+            }}
+          />
         </Form.Item>
 
-        <Form.Item>
+        <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
           <Button
             type="primary"
             htmlType="submit"
             loading={submitLoading}
             style={{ marginRight: 8 }}
           >
-            提交
+            提交 (Ctrl+Enter)
           </Button>
-          <Button onClick={onCancel}>取消</Button>
+          <Button onClick={onCancel}>取消 (Esc)</Button>
         </Form.Item>
       </Form>
     </Modal>
