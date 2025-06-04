@@ -30,9 +30,7 @@ const ContainerForm = ({
   // 从localStorage获取历史客户代码
   const getHistoryCustomerCodes = () => {
     try {
-      const history = JSON.parse(
-        localStorage.getItem("customerCodeHistory") || "[]"
-      );
+      const history = JSON.parse(localStorage.getItem('customerCodeHistory') || '[]');
       return [...new Set(history)]; // 去重
     } catch {
       return [];
@@ -44,29 +42,26 @@ const ContainerForm = ({
     if (!code) return;
     try {
       const history = getHistoryCustomerCodes();
-      const newHistory = [code, ...history.filter((c) => c !== code)].slice(
-        0,
-        20
-      ); // 保持最新20个
-      localStorage.setItem("customerCodeHistory", JSON.stringify(newHistory));
+      const newHistory = [code, ...history.filter(c => c !== code)].slice(0, 20); // 保持最新20个
+      localStorage.setItem('customerCodeHistory', JSON.stringify(newHistory));
     } catch (error) {
-      console.error("保存客户代码历史失败:", error);
+      console.error('保存客户代码历史失败:', error);
     }
   };
 
   // 客户代码搜索处理
   const handleCustomerCodeSearch = (value) => {
     const history = getHistoryCustomerCodes();
-    const filtered = history.filter((code) =>
+    const filtered = history.filter(code => 
       code.toLowerCase().includes(value.toLowerCase())
     );
-    setCustomerCodeSuggestions(filtered.map((code) => ({ value: code })));
+    setCustomerCodeSuggestions(filtered.map(code => ({ value: code })));
   };
 
   // 修复日期解析函数
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
-
+    
     try {
       // 如果已经是moment对象，直接返回
       if (moment.isMoment(dateStr)) {
@@ -105,7 +100,7 @@ const ContainerForm = ({
 
       return null;
     } catch (error) {
-      console.error("日期解析错误:", error);
+      console.error('日期解析错误:', error);
       return null;
     }
   };
@@ -137,12 +132,10 @@ const ContainerForm = ({
         到达时间: "",
         问题: "",
       });
-
+      
       // 设置焦点到柜号输入框
       setTimeout(() => {
-        const containerInput = document.querySelector(
-          'input[placeholder="输入柜号"]'
-        );
+        const containerInput = document.querySelector('input[placeholder="输入柜号"]');
         if (containerInput) {
           containerInput.focus();
         }
@@ -156,19 +149,19 @@ const ContainerForm = ({
 
     const handleKeyPress = (event) => {
       // Ctrl/Cmd + Enter 提交表单
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
         form.submit();
       }
       // Escape 取消
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         event.preventDefault();
         onCancel();
       }
     };
 
-    document.addEventListener("keydown", handleKeyPress);
-    return () => document.removeEventListener("keydown", handleKeyPress);
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
   }, [visible, form, onCancel]);
 
   const handleSubmit = async (values) => {
@@ -197,22 +190,22 @@ const ContainerForm = ({
       // 格式化到达时间
       if (values.到达时间 && values.到达时间.trim() !== "") {
         const timeStr = values.到达时间.toString().trim();
-
+        
         if (/^\d{1,2}$/.test(timeStr)) {
           const hour = parseInt(timeStr);
           if (hour >= 0 && hour <= 23) {
             formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:00`;
           }
-        } else if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+        }
+        else if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
           const parts = timeStr.split(":");
           const hour = parseInt(parts[0]);
           const minute = parseInt(parts[1]);
           if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-            formattedValues.到达时间 = `${hour
-              .toString()
-              .padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            formattedValues.到达时间 = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
           }
-        } else if (/^\d{2}:\d{2}$/.test(timeStr)) {
+        }
+        else if (/^\d{2}:\d{2}$/.test(timeStr)) {
           formattedValues.到达时间 = timeStr;
         }
       } else {
@@ -264,14 +257,11 @@ const ContainerForm = ({
           label="柜号"
           rules={[{ required: true, message: "请输入柜号" }]}
         >
-          <Input
+          <Input 
             placeholder="输入柜号"
             onPressEnter={(e) => {
               // Enter键跳转到下一个输入框
-              const nextInput =
-                e.target.parentElement.parentElement.nextElementSibling?.querySelector(
-                  "input"
-                );
+              const nextInput = e.target.parentElement.parentElement.nextElementSibling?.querySelector('input');
               if (nextInput) nextInput.focus();
             }}
           />
@@ -332,23 +322,31 @@ const ContainerForm = ({
           </Select>
         </Form.Item>
 
-        <Form.Item
-          name="问题"
+        <Form.Item 
+          name="问题" 
           label="问题/备注"
-          rules={[{ max: 500, message: "问题描述不能超过500字符" }]}
+          rules={[
+            { max: 500, message: "问题描述不能超过500字符" }
+          ]}
         >
-          <TextArea
-            rows={3}
-            placeholder="输入问题描述或备注信息（可选）"
+          <TextArea 
+            rows={3} 
+            placeholder="输入问题描述或备注信息（可选）" 
             showCount
             maxLength={500}
           />
         </Form.Item>
 
-        <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
           <Space>
-            <Button onClick={onCancel}>取消 (Esc)</Button>
-            <Button type="primary" htmlType="submit" loading={submitLoading}>
+            <Button onClick={onCancel}>
+              取消 (Esc)
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={submitLoading}
+            >
               提交 (Ctrl+Enter)
             </Button>
           </Space>
