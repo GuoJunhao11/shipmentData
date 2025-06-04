@@ -87,6 +87,55 @@ const parseDateForSort = (dateStr) => {
   }
 };
 
+// 获取差异显示标签
+const getDifferenceDisplay = (actual, system) => {
+  const difference = actual - system;
+  if (difference > 0) {
+    return (
+      <span
+        style={{
+          color: "#52c41a",
+          fontWeight: "bold",
+          padding: "2px 6px",
+          backgroundColor: "#f6ffed",
+          borderRadius: "4px",
+          border: "1px solid #b7eb8f",
+        }}
+      >
+        +{difference}
+      </span>
+    );
+  } else if (difference < 0) {
+    return (
+      <span
+        style={{
+          color: "#ff4d4f",
+          fontWeight: "bold",
+          padding: "2px 6px",
+          backgroundColor: "#fff2f0",
+          borderRadius: "4px",
+          border: "1px solid #ffccc7",
+          fontSize: "14px",
+          textShadow: "0 0 2px rgba(255, 77, 79, 0.3)",
+        }}
+      >
+        {difference}
+      </span>
+    );
+  } else {
+    return (
+      <span
+        style={{
+          color: "#8c8c8c",
+          fontWeight: "normal",
+        }}
+      >
+        0
+      </span>
+    );
+  }
+};
+
 // 快速筛选按钮组
 const QuickFilterButtons = ({
   data,
